@@ -55,7 +55,7 @@ class GuardrailService:
 
     # Financial commitment patterns
     FINANCIAL_PATTERNS = [
-        r"(?:will|shall|going to|we'll|I'll)\s+(?:pay|send|transfer|wire)\s+\$?\d+",
+        r"(?:will|shall|going to|we'll|I'll)\s+(?:pay|send|transfer|wire)\s+(?:\w+\s+)*\$?\d+",
         r"\$\d+(?:,\d{3})*(?:\.\d{2})?\s+(?:guaranteed|confirmed|promised)",
         r"(?:guarantee|promise|commit)\s+(?:to pay|payment of)\s+\$?\d+",
     ]

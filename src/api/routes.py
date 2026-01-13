@@ -1260,7 +1260,7 @@ async def get_task_audit_trail(
             "actor_type": log.actor_type,
             "timestamp": log.timestamp.isoformat(),
             "description": log.description,
-            "metadata": log.metadata,
+            "metadata": log.extra_data,
         }
         for log in logs
     ]

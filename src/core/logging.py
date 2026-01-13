@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 import sys
-from typing import Any
+from typing import Any, Optional
 
 import structlog
 from structlog.types import Processor
@@ -8,7 +10,7 @@ from structlog.types import Processor
 from src.core.config import settings
 
 
-def get_logger(name: str | None = None) -> structlog.BoundLogger:
+def get_logger(name: Optional[str] = None) -> structlog.BoundLogger:
     """Get a structured logger instance."""
     return structlog.get_logger(name or __name__)
 

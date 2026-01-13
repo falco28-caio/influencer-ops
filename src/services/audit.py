@@ -124,7 +124,7 @@ class AuditService:
                     actor_type=event.actor_type,
                     timestamp=event.timestamp,
                     description=event.description,
-                    metadata={
+                    extra_data={
                         "category": event.category.value,
                         "severity": event.severity.value,
                         **event.metadata,

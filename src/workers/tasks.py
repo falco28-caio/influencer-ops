@@ -370,7 +370,7 @@ async def _generate_draft_async(task_id: str):
                 actor="autopilot",
                 actor_type="agent",
                 timestamp=datetime.utcnow(),
-                metadata={
+                extra_data={
                     "confidence": autopilot_result.confidence.to_dict(),
                     "reason": autopilot_result.reason,
                 },
@@ -551,7 +551,7 @@ async def _send_email_async(task_id: str):
                 actor="system",
                 actor_type="agent",
                 timestamp=datetime.utcnow(),
-                metadata={"gmail_message_id": message_id},
+                extra_data={"gmail_message_id": message_id},
             )
             session.add(audit_log)
 
@@ -821,7 +821,7 @@ async def _send_approved_outreach_async(task_id: str):
                 actor="system",
                 actor_type="agent",
                 timestamp=datetime.utcnow(),
-                metadata={
+                extra_data={
                     "gmail_message_id": message_id,
                     "campaign_id": task.context_used.get("campaign_id") if task.context_used else None,
                 },

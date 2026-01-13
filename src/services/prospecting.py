@@ -434,7 +434,7 @@ Write a warm, personalized initial outreach email that:
                 actor="prospecting_service",
                 actor_type="agent",
                 timestamp=datetime.utcnow(),
-                metadata={
+                extra_data={
                     "campaign_id": campaign_id,
                     "prospect_email": prospect.email,
                     "confidence": draft_result.confidence,

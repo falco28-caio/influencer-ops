@@ -468,6 +468,7 @@ Return as JSON with subject and body."""
         original_context: str | None = None,
     ) -> DraftResult:
         """Improve an existing draft based on feedback."""
+        context_section = f"Original Context:\n{original_context}" if original_context else ""
         user_prompt = f"""Improve this email draft based on the feedback provided:
 
 Current Draft:
@@ -476,7 +477,7 @@ Current Draft:
 Feedback:
 {feedback}
 
-{"Original Context:\n" + original_context if original_context else ""}
+{context_section}
 
 Generate an improved version as a JSON object with subject, body, confidence, reasoning, sources_used, and warnings."""
 
@@ -524,6 +525,7 @@ Generate an improved version as a JSON object with subject, body, confidence, re
         if influencer_info.get("content_categories"):
             personalization_hints.append(f"Content focus: {influencer_info['content_categories']}")
 
+        template_section = f"Template to follow:\n{template}" if template else "Create a friendly, personalized outreach."
         user_prompt = f"""Generate an initial outreach email for influencer prospecting:
 
 Influencer: {influencer_name}
@@ -535,7 +537,7 @@ Personalization opportunities:
 Campaign Context:
 {campaign_context}
 
-{"Template to follow:\n" + template if template else "Create a friendly, personalized outreach."}
+{template_section}
 
 Guidelines:
 - Make it personal, not generic

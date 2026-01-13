@@ -107,7 +107,7 @@ def upgrade() -> None:
         sa.Column("subject", sa.String(500), nullable=True),
         sa.Column("sender", sa.String(255), nullable=True),
         sa.Column("recipients", postgresql.JSON, nullable=True),
-        sa.Column("metadata", postgresql.JSON, nullable=True),
+        sa.Column("extra_data", postgresql.JSON, nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
@@ -174,7 +174,7 @@ def upgrade() -> None:
         sa.Column("actor_type", sa.String(50), nullable=False),
         sa.Column("timestamp", sa.DateTime(timezone=True), nullable=False),
         sa.Column("description", sa.Text, nullable=True),
-        sa.Column("metadata", postgresql.JSON, nullable=True),
+        sa.Column("extra_data", postgresql.JSON, nullable=True),
         sa.Column("llm_input", sa.Text, nullable=True),
         sa.Column("llm_output", sa.Text, nullable=True),
         sa.Column("llm_model", sa.String(100), nullable=True),

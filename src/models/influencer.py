@@ -1,7 +1,5 @@
-from __future__ import annotations
-
 import enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, List
 
 from sqlalchemy import Enum, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -30,7 +28,7 @@ class Influencer(Base):
 
     __tablename__ = "influencers"
 
-    hubspot_id: Mapped[str | None] = mapped_column(
+    hubspot_id: Mapped[Optional[str]] = mapped_column(
         String(255),
         unique=True,
         nullable=True,
@@ -50,20 +48,20 @@ class Influencer(Base):
     )
 
     # Social handles
-    instagram_handle: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    twitter_handle: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    tiktok_handle: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    youtube_channel: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    instagram_handle: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    twitter_handle: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    tiktok_handle: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    youtube_channel: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Metrics
-    follower_count: Mapped[int | None] = mapped_column(nullable=True)
-    engagement_rate: Mapped[float | None] = mapped_column(nullable=True)
+    follower_count: Mapped[Optional[int]] = mapped_column(nullable=True)
+    engagement_rate: Mapped[Optional[float]] = mapped_column(nullable=True)
 
     # Notes
-    notes: Mapped[str | None] = mapped_column(nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(nullable=True)
 
     # Relationships
-    conversations: Mapped[list["Conversation"]] = relationship(
+    conversations: Mapped[List["Conversation"]] = relationship(
         "Conversation",
         back_populates="influencer",
         lazy="selectin",
