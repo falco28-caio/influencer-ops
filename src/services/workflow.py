@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Workflow Engine for managing conversation state machines.
 

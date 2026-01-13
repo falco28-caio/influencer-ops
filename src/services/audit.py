@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Audit Logging Service for comprehensive action tracking.
 

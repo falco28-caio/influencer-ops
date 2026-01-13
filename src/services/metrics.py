@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Metrics Service for tracking agent performance and generating dashboard data.
 

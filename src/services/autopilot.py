@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Autopilot Decision Engine for automated email handling.
 

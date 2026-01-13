@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Enhanced Drafting Service with template support and RAG integration.
 

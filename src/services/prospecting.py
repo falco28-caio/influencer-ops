@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Prospecting Service for automated initial outreach.
 

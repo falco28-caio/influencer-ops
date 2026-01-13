@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Enhanced HubSpot Adapter with full CRM integration.
 
