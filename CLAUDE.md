@@ -133,6 +133,35 @@ with patch.object(agent._client.messages, "create", return_value=mock_response):
 - **Don't use sync DB/Redis calls** — everything is async in this codebase
 - **Don't create services with state** — services are stateless; state goes to Redis or DB
 
+## Agent Team — Autonomous Operations
+
+このプロジェクトでは Hooks + Skills + Rules による Agent Team 体制が構築されている。
+
+### Hooks（自動ゲート — 人間の介入なしで実行）
+- **PostToolUse (Edit/Write)**: Python ファイル編集後に自動で `black` + `ruff --fix` を実行
+- **PreToolUse (git commit)**: コミット前に `ruff check` + `pytest` を実行。失敗したらコミットをブロック
+
+### Skills（専門エージェント — `/skill名` で起動）
+- `/review-pr [PR番号]` — セキュリティ・品質・ドメイン知識の5観点でPRを徹底レビュー
+- `/security-audit [対象]` — ガードレール漏れ・PII漏洩・シークレット漏洩・injection脆弱性をスキャン
+- `/sync-ops [hubspot|notion|all]` — データ同期をプリフライトチェック付きで安全に実行
+- `/health-check` — 全サービス（DB, Redis, API, Celery, 外部API）の接続状態を診断
+
+### Rules（パスベース自動ロード — 対象ファイル操作時に発動）
+- `database.md` → models/alembic 操作時
+- `api.md` → API routes/schemas 操作時
+- `adapters.md` → 外部サービスアダプター操作時
+- `security.md` → ガードレール/エージェント/ドラフト操作時
+- `workers.md` → Celery タスク操作時
+- `rag.md` → RAG サービス操作時
+- `testing.md` → テストファイル操作時
+
+### 自律行動ガイドライン
+1. **コード変更後**: `make test` を実行し、失敗したら修正してからコミット
+2. **新機能追加時**: 対応するテストファイル `tests/test_<module>.py` も作成
+3. **セキュリティ関連の変更時**: `/security-audit` で自己検証
+4. **PR作成前**: `/review-pr` で自己レビューし、指摘事項を修正
+
 ## Git Conventions
 
 - Commit format: `<type>: <description>` (e.g., `feat: add campaign pause endpoint`)
