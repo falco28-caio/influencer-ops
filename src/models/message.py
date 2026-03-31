@@ -1,7 +1,7 @@
 import enum
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, List, Dict
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
@@ -34,20 +34,20 @@ class Message(Base):
         nullable=False,
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    content_masked: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    content_masked: Mapped[str | None] = mapped_column(Text, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
     )
 
     # Email-specific fields
-    message_id: Mapped[Optional[str]] = mapped_column(nullable=True, index=True)
-    subject: Mapped[Optional[str]] = mapped_column(nullable=True)
-    sender: Mapped[Optional[str]] = mapped_column(nullable=True)
-    recipients: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    message_id: Mapped[str | None] = mapped_column(nullable=True, index=True)
+    subject: Mapped[str | None] = mapped_column(nullable=True)
+    sender: Mapped[str | None] = mapped_column(nullable=True)
+    recipients: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     # Metadata (headers, attachments info, etc.)
-    extra_data: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    extra_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # Relationships
     conversation: Mapped["Conversation"] = relationship(

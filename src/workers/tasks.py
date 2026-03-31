@@ -5,31 +5,31 @@ from uuid import UUID
 from celery import shared_task
 
 from src.adapters.gmail import GmailAdapter
-from src.adapters.slack import SlackAdapter, ApprovalRequest
 from src.adapters.hubspot import HubSpotAdapter
-from src.agents.triage import TriageAgent, Intent, Priority, Sentiment
+from src.adapters.slack import ApprovalRequest, SlackAdapter
+from src.agents.triage import Intent, Priority, Sentiment, TriageAgent
 from src.core.database import get_session_context
 from src.core.logging import get_logger
 from src.core.redis import check_kill_switch
 from src.models import (
+    AuditLog,
+    Conversation,
+    ConversationStatus,
     Influencer,
     InfluencerStatus,
-    Conversation,
     Message,
     MessageDirection,
     Task,
     TaskStatus,
     TaskType,
-    AuditLog,
-    ConversationStatus,
+)
+from src.services.autopilot import (
+    AutopilotDecision,
+    get_autopilot_engine,
 )
 from src.services.drafting import DraftingService
 from src.services.guardrail import GuardrailService
 from src.services.rag import RAGService
-from src.services.autopilot import (
-    get_autopilot_engine,
-    AutopilotDecision,
-)
 
 logger = get_logger(__name__)
 
@@ -229,7 +229,7 @@ async def _generate_draft_async(task_id: str):
     logger.info("Generating draft", task_id=task_id)
 
     async with get_session_context() as session:
-        from sqlalchemy import select, func
+        from sqlalchemy import func, select
 
         # Get task with conversation and messages
         result = await session.execute(
@@ -708,7 +708,7 @@ def run_active_campaigns():
 
 async def _run_active_campaigns_async():
     """Async implementation of running active campaigns."""
-    from src.services.prospecting import get_prospecting_service, CampaignStatus
+    from src.services.prospecting import CampaignStatus, get_prospecting_service
 
     if await check_kill_switch():
         return {"status": "skipped", "reason": "kill_switch"}
@@ -832,6 +832,7 @@ async def _send_approved_outreach_async(task_id: str):
             if task.context_used and "campaign_id" in task.context_used:
                 redis = await get_redis()
                 import json
+
                 from src.services.prospecting import ProspectStatus
 
                 campaign_id = task.context_used["campaign_id"]

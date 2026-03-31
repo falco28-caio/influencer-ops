@@ -8,11 +8,11 @@ from pathlib import Path
 from typing import Any
 
 import chromadb
-from chromadb.config import Settings as ChromaSettings
 import openai
 import tiktoken
+from chromadb.config import Settings as ChromaSettings
 
-from src.adapters.notion import NotionAdapter, NotionPage
+from src.adapters.notion import NotionAdapter
 from src.core.config import settings
 from src.core.logging import get_logger
 

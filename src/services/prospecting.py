@@ -11,7 +11,7 @@ This module implements:
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import Any
 from uuid import UUID, uuid4
@@ -23,16 +23,16 @@ from src.core.database import get_session_context
 from src.core.logging import get_logger
 from src.core.redis import get_redis
 from src.models import (
-    Influencer,
-    InfluencerStatus,
+    AuditLog,
     Conversation,
     ConversationStatus,
+    Influencer,
+    InfluencerStatus,
     Message,
     MessageDirection,
     Task,
     TaskStatus,
     TaskType,
-    AuditLog,
 )
 from src.services.drafting import DraftingService
 from src.services.guardrail import GuardrailService

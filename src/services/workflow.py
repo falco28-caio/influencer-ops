@@ -18,10 +18,11 @@ This implements a state machine for email conversations with the following state
 Transitions are triggered by events and can have guards (conditions).
 """
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Awaitable
+from typing import Any
 from uuid import UUID
 
 from src.core.logging import get_logger

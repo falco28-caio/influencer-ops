@@ -19,8 +19,8 @@ from uuid import UUID
 from src.agents.triage import Intent, Priority, Sentiment
 from src.core.config import settings
 from src.core.logging import get_logger
-from src.core.redis import get_redis, check_kill_switch
-from src.services.guardrail import GuardrailService, GuardrailResult
+from src.core.redis import check_kill_switch, get_redis
+from src.services.guardrail import GuardrailResult, GuardrailService
 
 
 class AutopilotDecision(str, Enum):
@@ -406,7 +406,7 @@ class AutopilotEngine:
             decision = AutopilotDecision.HUMAN_REVIEW
             reasons = []
             if not intent_allowed:
-                reasons.append(f"intent not allowed")
+                reasons.append("intent not allowed")
             if not meets_threshold:
                 reasons.append(f"confidence {confidence.overall:.2f} < {threshold:.2f}")
             if not guardrail_result.passed:

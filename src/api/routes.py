@@ -4,15 +4,19 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.adapters.gmail import GmailAdapter
-from src.adapters.slack import SlackAdapter, ApprovalRequest
+from src.adapters.slack import SlackAdapter
 from src.agents.triage import TriageAgent
 from src.api.schemas import (
-    ConversationCreate,
+    AutopilotStatsResponse,
+    CampaignBatchResponse,
+    CampaignCreateRequest,
+    CampaignProgressResponse,
+    CampaignResponse,
     ConversationResponse,
     DraftRequest,
     DraftResponse,
@@ -24,31 +28,25 @@ from src.api.schemas import (
     InfluencerUpdate,
     KillSwitchRequest,
     KillSwitchResponse,
-    SlackInteractionPayload,
+    ProspectResultResponse,
     SyncRequest,
     SyncResponse,
     TaskApproval,
     TaskResponse,
-    CampaignCreateRequest,
-    CampaignResponse,
-    CampaignProgressResponse,
-    CampaignBatchResponse,
-    ProspectResultResponse,
-    AutopilotStatsResponse,
 )
 from src.core.config import settings
 from src.core.database import get_session
 from src.core.logging import get_logger
-from src.core.redis import check_kill_switch, set_kill_switch, get_redis
+from src.core.redis import check_kill_switch, get_redis, set_kill_switch
 from src.models import (
-    Influencer,
+    AuditLog,
     Conversation,
+    Influencer,
     Message,
     MessageDirection,
     Task,
     TaskStatus,
     TaskType,
-    AuditLog,
 )
 from src.services.drafting import DraftingService
 from src.services.guardrail import GuardrailService
@@ -708,7 +706,7 @@ async def get_rag_stats() -> dict[str, Any]:
 @router.get("/dashboard/workflows", tags=["Dashboard"])
 async def get_workflow_stats() -> dict[str, Any]:
     """Get workflow statistics."""
-    from src.services.workflow import get_workflow_engine, WorkflowState
+    from src.services.workflow import WorkflowState, get_workflow_engine
 
     engine = get_workflow_engine()
     redis = await get_redis()
@@ -846,7 +844,7 @@ async def create_campaign(
     data: CampaignCreateRequest,
 ) -> CampaignResponse:
     """Create a new prospecting campaign."""
-    from src.services.prospecting import get_prospecting_service, CampaignConfig
+    from src.services.prospecting import CampaignConfig, get_prospecting_service
 
     service = await get_prospecting_service()
 
@@ -884,8 +882,9 @@ async def create_campaign(
 @router.get("/prospecting/campaigns", response_model=list[CampaignResponse], tags=["Prospecting"])
 async def list_campaigns() -> list[CampaignResponse]:
     """List all prospecting campaigns."""
-    from src.services.prospecting import get_prospecting_service
     from datetime import datetime
+
+    from src.services.prospecting import get_prospecting_service
 
     service = await get_prospecting_service()
     campaigns = await service.list_campaigns()
@@ -1168,7 +1167,7 @@ async def set_allowed_intents(
 
     return {
         "allowed_intents": intents,
-        "message": f"Allowed intents updated",
+        "message": "Allowed intents updated",
     }
 
 
@@ -1183,7 +1182,7 @@ async def get_audit_events(
     severity: str | None = None,
 ) -> list[dict[str, Any]]:
     """Get recent audit events."""
-    from src.services.audit import get_audit_service, AuditCategory, AuditSeverity
+    from src.services.audit import AuditCategory, AuditSeverity, get_audit_service
 
     service = get_audit_service()
 
@@ -1198,7 +1197,7 @@ async def get_critical_events(
     limit: int = 50,
 ) -> list[dict[str, Any]]:
     """Get critical audit events (errors and critical)."""
-    from src.services.audit import get_audit_service, AuditSeverity
+    from src.services.audit import AuditSeverity, get_audit_service
 
     service = get_audit_service()
     return await service.get_recent_events(limit=limit, severity=AuditSeverity.CRITICAL)
@@ -1221,8 +1220,9 @@ async def get_compliance_report(
     end_date: str,
 ) -> dict[str, Any]:
     """Generate compliance report for date range."""
-    from src.services.audit import get_audit_service
     from datetime import datetime
+
+    from src.services.audit import get_audit_service
 
     service = get_audit_service()
 

@@ -12,8 +12,8 @@ Supports:
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
 from enum import Enum
+from typing import Any
 
 from hubspot import HubSpot
 from hubspot.crm.contacts import SimplePublicObjectInput
@@ -22,8 +22,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.adapters.base import BaseAdapter
 from src.core.config import settings
-from src.core.logging import get_logger
-from src.models.influencer import InfluencerStatus, RiskLevel
+from src.models.influencer import InfluencerStatus
 
 
 class DealStage(str, Enum):
@@ -633,6 +632,7 @@ class HubSpotAdapter(BaseAdapter):
         - All deals associated with contacts
         """
         from sqlalchemy import select
+
         from src.models import Influencer
 
         result = SyncResult()

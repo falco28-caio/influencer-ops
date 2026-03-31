@@ -273,7 +273,7 @@ Best,
             if rag_context.influencer_context:
                 context_parts.append(f"## Influencer Info\n{rag_context.influencer_context}")
             if rag_context.similar_cases:
-                context_parts.append(f"## Similar Past Cases\n" + "\n---\n".join(rag_context.similar_cases[:2]))
+                context_parts.append("## Similar Past Cases\n" + "\n---\n".join(rag_context.similar_cases[:2]))
         elif sop_content:
             context_parts.append(f"## SOP Content (MUST FOLLOW)\n{sop_content}")
             sources_used.append("SOP Documents")
