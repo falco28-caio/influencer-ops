@@ -1,109 +1,140 @@
 # InfluencerOps Agent
 
-Influencer Operations AI Agent - Email triage, draft generation, workflow automation for influencer communications.
-
-## Tech Stack
-
-- **Language**: Python 3.11+
-- **Framework**: FastAPI + Uvicorn
-- **Database**: PostgreSQL (asyncpg) + SQLAlchemy 2.0 (async) + Alembic
-- **Cache/Queue**: Redis + Celery
-- **LLM**: Anthropic Claude (triage/drafting) + OpenAI (embeddings) + ChromaDB (RAG)
-- **Integrations**: Gmail API, Slack SDK, HubSpot API, Notion API
-- **Validation**: Pydantic v2 + pydantic-settings
-- **Logging**: structlog (structured JSON logging)
+Influencer communications AI agent — email triage, draft generation, workflow automation.
 
 ## Commands
 
 ```bash
-make dev            # Start dev server (uvicorn --reload on :8000)
-make test           # Run tests with coverage
-make lint           # ruff check + mypy strict
-make format         # black + ruff --fix
-make migrate        # alembic upgrade head
-make worker         # Start Celery worker
-make beat           # Start Celery beat scheduler
-make docker-up      # Start PostgreSQL + Redis via docker-compose
-make docker-down    # Stop Docker services
+make dev              # uvicorn --reload on :8000
+make test             # pytest with coverage
+make lint             # ruff check + mypy strict
+make format           # black + ruff --fix
+make migrate          # alembic upgrade head
+make docker-up        # PostgreSQL + Redis
+make worker           # Celery worker
+make beat             # Celery beat scheduler
 ```
 
 Single test: `pytest tests/test_triage.py -v`
 
-## Architecture
+## Code Style — Hard Rules
 
-```
-src/
-  main.py              # FastAPI app factory + lifespan
-  api/
-    routes.py          # All API endpoints (prefix: /api/v1)
-    schemas.py         # Pydantic request/response models
-  agents/
-    triage.py          # TriageAgent - email classification via Claude
-  services/
-    autopilot.py       # Auto-send decisions
-    drafting.py        # Email draft generation
-    guardrail.py       # Content safety (PII, injection, policy checks)
-    metrics.py         # Dashboard metrics
-    prospecting.py     # Outreach campaign management
-    rag.py             # RAG retrieval (SOPs, templates, history)
-    workflow.py        # State machine engine (Redis-persisted)
-    audit.py           # Audit logging
-  adapters/
-    base.py            # BaseAdapter ABC (initialize/health_check/close)
-    gmail.py           # Gmail API adapter
-    slack.py           # Slack adapter
-    hubspot.py         # HubSpot CRM adapter
-    notion.py          # Notion SOP sync adapter
-  core/
-    config.py          # Settings via pydantic-settings (.env)
-    database.py        # Async SQLAlchemy engine + session
-    logging.py         # structlog setup
-    redis.py           # Redis connection manager
-  models/
-    base.py            # DeclarativeBase (UUID pk, created_at, updated_at)
-    influencer.py      # Influencer model
-    conversation.py    # Conversation model
-    message.py         # Message model
-    task.py            # Task model
-    audit_log.py       # AuditLog model
-  workers/
-    celery_app.py      # Celery configuration
-    tasks.py           # Async tasks (sync, follow-up, etc.)
-tests/
-  conftest.py          # Fixtures: in-memory SQLite async engine + session
-  test_triage.py       # TriageAgent tests
+- `from __future__ import annotations` at the top of **every** `.py` file
+- Type annotations on **all** function signatures (mypy strict)
+- black line-length=100, ruff rules: E/F/I/N/W/UP
+- Import order: stdlib → third-party → `src.*` (ruff `I` enforces this)
+- Logging: `structlog` via `get_logger()` with **structured kwargs only**
+
+```python
+# GOOD
+self.logger.info("Draft generated", task_id=str(task.id), confidence=0.92)
+
+# BAD — never use f-strings in log calls
+self.logger.info(f"Draft generated for task {task.id}")
 ```
 
-## Code Conventions
+## Key Patterns
 
-- **Formatting**: black (line-length=100), ruff (E/F/I/N/W/UP rules)
-- **Types**: mypy strict mode. Always add type annotations to function signatures
-- **Imports**: Use `from __future__ import annotations` at top of every module
-- **Models**: SQLAlchemy 2.0 `Mapped[T]` + `mapped_column()`. All PKs are `UUID`
-- **Schemas**: Pydantic v2 `BaseModel`. Use `from_attributes = True` for ORM models
-- **Adapters**: Extend `BaseAdapter` ABC. Must implement `initialize()`, `health_check()`, `close()`
-- **Services**: Stateless classes. Get logger via `get_logger(self.__class__.__name__)`
-- **Config**: All settings via `src.core.config.settings`. Secrets use `SecretStr`
-- **Async**: All DB and Redis ops are async. Use `async/await` consistently
-- **Logging**: Use `structlog` via `get_logger()`. Pass structured kwargs, not f-strings
+### Services — Stateless, always get logger in `__init__`
+```python
+class MyService:
+    def __init__(self) -> None:
+        self.logger = get_logger(self.__class__.__name__)
+```
 
-## Security
+### Models — SQLAlchemy 2.0 style only
+```python
+# GOOD
+name: Mapped[str] = mapped_column(String(255), nullable=False)
 
-- **NEVER** commit `.env`, `*_token.json`, `*_credentials.json`
-- Guardrail checks (PII, prompt injection, financial promises) must run before any outbound content
-- Use `GuardrailService.sanitize_for_prompt()` when including user content in LLM prompts
-- Use `SecretStr` for all API keys and secrets in Settings
+# BAD — legacy Column() style is forbidden
+name = Column(String(255), nullable=False)
+```
 
-## Workflow States
+### Schemas — Pydantic v2 with ORM mode
+```python
+class FooResponse(BaseModel):
+    class Config:
+        from_attributes = True  # not orm_mode
+```
 
-Email conversations follow this state machine (defined in `src/services/workflow.py`):
-`NEW -> TRIAGING -> DRAFTING -> REVIEWING -> APPROVED -> SENDING -> SENT -> WAITING_REPLY -> CLOSED`
+### LLM Calls — Always follow this pattern
+```python
+# 1. Sanitize user content before embedding in prompts
+sanitized = GuardrailService().sanitize_for_prompt(user_content)
 
-Key branch: TRIAGING filters spam/out_of_scope to CLOSED. FAILED state retries up to 3x.
+# 2. Use settings for model config
+response = client.messages.create(
+    model=settings.llm_model,  # never hardcode model names
+    max_tokens=settings.llm_max_tokens,
+    temperature=0.3,  # low for classification, 0.7 for generation
+    system=SYSTEM_PROMPT,
+    messages=[{"role": "user", "content": prompt}],
+)
+
+# 3. Parse JSON — always handle ```json blocks
+response_text = response.content[0].text
+result = self._parse_response(response_text)  # strips markdown fences
+```
+
+### Config — All via settings singleton
+```python
+from src.core.config import settings
+# Secrets: settings.anthropic_api_key.get_secret_value()
+# Never hardcode API keys, URLs, or thresholds
+```
+
+## Workflow State Machine
+
+```
+NEW → TRIAGING → DRAFTING → REVIEWING → APPROVED → SENDING → SENT → WAITING_REPLY → CLOSED
+                    ↑          ↓    ↑                                    ↓
+                    |       EDITING──┘                           FOLLOW_UP_NEEDED
+                    |          ↓
+                    └─── FAILED (retry ≤3x) → ESCALATED
+```
+
+TRIAGING filters `spam`/`out_of_scope` → CLOSED. Guards use `context.get("intent")`.
+
+## Security — Non-Negotiable
+
+1. **Guardrail before outbound**: `GuardrailService.check_content()` must run before sending ANY email or Slack message
+2. **Sanitize before LLM**: `sanitize_for_prompt()` on all user-provided content going into prompts
+3. **Kill switch**: Check `check_kill_switch()` before any auto-send in workers
+4. **Secrets**: All API keys are `SecretStr` in Settings. Access via `.get_secret_value()`
+5. **Never commit**: `.env`, `*_token.json`, `*_credentials.json`
 
 ## Testing
 
-- Framework: pytest + pytest-asyncio (auto mode)
-- DB fixtures use in-memory SQLite (`aiosqlite`)
-- Mock external APIs (Gmail, Slack, HubSpot, Notion, Anthropic) - never call real services in tests
-- Test file naming: `tests/test_<module>.py`
+- pytest-asyncio in `auto` mode — just write `async def test_*`
+- DB: in-memory SQLite via `aiosqlite` (fixtures in `conftest.py`)
+- **Always mock external services** — never hit real Gmail/Slack/HubSpot/Anthropic in tests
+- File naming: `tests/test_<module>.py`
+
+```python
+# Mock pattern for Anthropic client
+from unittest.mock import AsyncMock, MagicMock, patch
+
+mock_response = MagicMock()
+mock_response.content = [MagicMock(text='{"intent": "collab_inquiry", "confidence": 0.95}')]
+
+with patch.object(agent._client.messages, "create", return_value=mock_response):
+    result = await agent.analyze(email_body="...", email_subject="...", sender="...")
+```
+
+## Anti-Patterns — Do NOT
+
+- **Don't use `Column()`** — SQLAlchemy 2.0 `mapped_column()` only
+- **Don't call real APIs in tests** — always mock
+- **Don't hardcode model names** — use `settings.llm_model`
+- **Don't use `orm_mode`** — it's `from_attributes` in Pydantic v2
+- **Don't log PII** — use `mask_for_logging()` before logging email content
+- **Don't skip guardrails** — even for "internal" or "test" emails
+- **Don't use sync DB/Redis calls** — everything is async in this codebase
+- **Don't create services with state** — services are stateless; state goes to Redis or DB
+
+## Git Conventions
+
+- Commit format: `<type>: <description>` (e.g., `feat: add campaign pause endpoint`)
+- Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
+- One logical change per commit
