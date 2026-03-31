@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker-compose:*)",
+      "Bash(pytest:*)",
+      "Bash(ruff:*)",
+      "Bash(redis-cli:*)",
+      "Bash(git:*)"
+    ]
+  }
+}
