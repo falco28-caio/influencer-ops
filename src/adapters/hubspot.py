@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Enhanced HubSpot Adapter with full CRM integration.
 
@@ -10,9 +8,11 @@ Supports:
 - Properties sync
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from hubspot import HubSpot
@@ -25,7 +25,7 @@ from src.core.config import settings
 from src.models.influencer import InfluencerStatus
 
 
-class DealStage(str, Enum):
+class DealStage(StrEnum):
     """HubSpot deal stages for influencer partnerships."""
 
     PROSPECT = "prospect"
@@ -342,7 +342,9 @@ class HubSpotAdapter(BaseAdapter):
                 contact_id=hubspot_id,
                 simple_public_object_input=SimplePublicObjectInput(properties=properties),
             )
-            self.logger.info("Contact updated", hubspot_id=hubspot_id, properties=list(properties.keys()))
+            self.logger.info(
+                "Contact updated", hubspot_id=hubspot_id, properties=list(properties.keys())
+            )
             return self._parse_contact(contact)
         except Exception as e:
             self.logger.error("Failed to update contact", hubspot_id=hubspot_id, error=str(e))
@@ -379,9 +381,7 @@ class HubSpotAdapter(BaseAdapter):
         close_date = None
         if props.get("closedate"):
             try:
-                close_date = datetime.fromisoformat(
-                    props["closedate"].replace("Z", "+00:00")
-                )
+                close_date = datetime.fromisoformat(props["closedate"].replace("Z", "+00:00"))
             except Exception:
                 pass
 
@@ -436,7 +436,9 @@ class HubSpotAdapter(BaseAdapter):
 
             return deals
         except Exception as e:
-            self.logger.error("Failed to list deals for contact", contact_id=contact_id, error=str(e))
+            self.logger.error(
+                "Failed to list deals for contact", contact_id=contact_id, error=str(e)
+            )
             return []
 
     @retry(
@@ -500,9 +502,7 @@ class HubSpotAdapter(BaseAdapter):
         try:
             deal = self._client.crm.deals.basic_api.update(
                 deal_id=hubspot_id,
-                simple_public_object_input=DealInput(
-                    properties={"dealstage": stage.value}
-                ),
+                simple_public_object_input=DealInput(properties={"dealstage": stage.value}),
             )
             self.logger.info("Deal stage updated", hubspot_id=hubspot_id, stage=stage.value)
             return self._parse_deal(deal)
@@ -532,7 +532,7 @@ class HubSpotAdapter(BaseAdapter):
 
         try:
             # Create engagement
-            engagement = {
+            {
                 "engagement": {
                     "active": True,
                     "type": "EMAIL",
@@ -700,7 +700,11 @@ class HubSpotAdapter(BaseAdapter):
         """Sync a local influencer to HubSpot."""
         properties = {
             "firstname": influencer.name.split()[0] if influencer.name else "",
-            "lastname": " ".join(influencer.name.split()[1:]) if influencer.name and len(influencer.name.split()) > 1 else "",
+            "lastname": (
+                " ".join(influencer.name.split()[1:])
+                if influencer.name and len(influencer.name.split()) > 1
+                else ""
+            ),
             "hs_lead_status": self._status_to_hubspot(influencer.status),
         }
 

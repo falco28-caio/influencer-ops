@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Metrics Service for tracking agent performance and generating dashboard data.
 
@@ -12,9 +10,11 @@ Tracks:
 - Error rates
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
@@ -22,7 +22,7 @@ from src.core.logging import get_logger
 from src.core.redis import get_redis
 
 
-class MetricType(str, Enum):
+class MetricType(StrEnum):
     """Types of metrics tracked."""
 
     EMAILS_RECEIVED = "emails_received"
@@ -378,10 +378,12 @@ class MetricsService:
             hour_start = now - timedelta(hours=i + 1)
             hour_key = str(int(hour_start.timestamp()) // 3600 * 3600)
             count = int(data.get(hour_key, 0))
-            hourly.append({
-                "hour": hour_start.isoformat(),
-                "count": count,
-            })
+            hourly.append(
+                {
+                    "hour": hour_start.isoformat(),
+                    "count": count,
+                }
+            )
 
         return list(reversed(hourly))
 

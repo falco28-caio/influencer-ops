@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
@@ -9,20 +9,20 @@ from pydantic import BaseModel, EmailStr, Field
 
 
 # Enums matching database models
-class InfluencerStatusEnum(str, Enum):
+class InfluencerStatusEnum(StrEnum):
     PROSPECT = "prospect"
     ACTIVE = "active"
     INACTIVE = "inactive"
     BLACKLISTED = "blacklisted"
 
 
-class RiskLevelEnum(str, Enum):
+class RiskLevelEnum(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
 
 
-class ChannelEnum(str, Enum):
+class ChannelEnum(StrEnum):
     EMAIL = "email"
     INSTAGRAM_DM = "instagram_dm"
     TWITTER_DM = "twitter_dm"
@@ -30,7 +30,7 @@ class ChannelEnum(str, Enum):
     SLACK = "slack"
 
 
-class ConversationStatusEnum(str, Enum):
+class ConversationStatusEnum(StrEnum):
     OPEN = "open"
     CLOSED = "closed"
     NEEDS_ACTION = "needs_action"
@@ -38,7 +38,7 @@ class ConversationStatusEnum(str, Enum):
     SNOOZED = "snoozed"
 
 
-class TaskTypeEnum(str, Enum):
+class TaskTypeEnum(StrEnum):
     DRAFT_REPLY = "draft_reply"
     SCHEDULE_MEETING = "schedule_meeting"
     REMIND_PENDING = "remind_pending"
@@ -48,7 +48,7 @@ class TaskTypeEnum(str, Enum):
     CUSTOM = "custom"
 
 
-class TaskStatusEnum(str, Enum):
+class TaskStatusEnum(StrEnum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     AWAITING_APPROVAL = "awaiting_approval"
@@ -321,11 +321,12 @@ class CampaignCreateRequest(BaseModel):
     max_prospects: int = Field(default=100, ge=1, le=1000, description="Maximum prospects to load")
     daily_limit: int = Field(default=20, ge=1, le=100, description="Daily sending limit")
     subject_template: str = Field(
-        default="Collaboration opportunity with {brand_name}",
-        description="Subject line template"
+        default="Collaboration opportunity with {brand_name}", description="Subject line template"
     )
     auto_approve: bool = Field(default=False, description="Auto-approve high-confidence drafts")
-    confidence_threshold: float = Field(default=0.85, ge=0.5, le=1.0, description="Threshold for auto-approve")
+    confidence_threshold: float = Field(
+        default=0.85, ge=0.5, le=1.0, description="Threshold for auto-approve"
+    )
 
 
 class CampaignResponse(BaseModel):

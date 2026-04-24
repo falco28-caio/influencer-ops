@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import anthropic
@@ -11,7 +11,7 @@ from src.core.config import settings
 from src.core.logging import get_logger
 
 
-class Intent(str, Enum):
+class Intent(StrEnum):
     """Email intent categories."""
 
     COLLAB_INQUIRY = "collab_inquiry"
@@ -26,7 +26,7 @@ class Intent(str, Enum):
     OUT_OF_SCOPE = "out_of_scope"
 
 
-class Priority(str, Enum):
+class Priority(StrEnum):
     """Email priority levels."""
 
     URGENT = "urgent"
@@ -35,7 +35,7 @@ class Priority(str, Enum):
     LOW = "low"
 
 
-class Sentiment(str, Enum):
+class Sentiment(StrEnum):
     """Email sentiment categories."""
 
     POSITIVE = "positive"

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
 from typing import Any
@@ -34,6 +36,4 @@ class Base(DeclarativeBase):
 
     def to_dict(self) -> dict[str, Any]:
         """Convert model to dictionary."""
-        return {
-            column.name: getattr(self, column.name) for column in self.__table__.columns
-        }
+        return {column.name: getattr(self, column.name) for column in self.__table__.columns}

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from src.models.audit_log import AuditLog
 from src.models.base import Base
 from src.models.conversation import Channel, Conversation, ConversationStatus

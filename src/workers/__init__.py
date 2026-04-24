@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from src.workers.celery_app import celery_app
 from src.workers.tasks import (
     generate_draft_task,

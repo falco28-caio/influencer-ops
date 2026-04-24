@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import enum
 import uuid
 from datetime import datetime
@@ -13,7 +15,7 @@ if TYPE_CHECKING:
     from src.models.conversation import Conversation
 
 
-class MessageDirection(str, enum.Enum):
+class MessageDirection(enum.StrEnum):
     INBOUND = "inbound"
     OUTBOUND = "outbound"
 
@@ -50,7 +52,7 @@ class Message(Base):
     extra_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # Relationships
-    conversation: Mapped["Conversation"] = relationship(
+    conversation: Mapped[Conversation] = relationship(
         "Conversation",
         back_populates="messages",
     )

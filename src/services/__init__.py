@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from src.services.drafting import DraftingService, DraftResult
 from src.services.guardrail import GuardrailResult, GuardrailService
 from src.services.metrics import MetricsService

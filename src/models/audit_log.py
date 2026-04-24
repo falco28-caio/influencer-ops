@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
@@ -42,7 +44,7 @@ class AuditLog(Base):
     llm_tokens_used: Mapped[int | None] = mapped_column(nullable=True)
 
     # Relationships
-    task: Mapped[Optional["Task"]] = relationship(
+    task: Mapped[Task | None] = relationship(
         "Task",
         back_populates="audit_logs",
     )

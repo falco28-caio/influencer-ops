@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from src.adapters.gmail import GmailAdapter
 from src.adapters.hubspot import HubSpotAdapter
 from src.adapters.notion import NotionAdapter

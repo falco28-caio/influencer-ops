@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Prospecting Service for automated initial outreach.
 
@@ -10,9 +8,11 @@ This module implements:
 - Duplicate prevention
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -39,8 +39,9 @@ from src.services.guardrail import GuardrailService
 from src.services.rag import RAGService
 
 
-class CampaignStatus(str, Enum):
+class CampaignStatus(StrEnum):
     """Campaign status."""
+
     DRAFT = "draft"
     ACTIVE = "active"
     PAUSED = "paused"
@@ -48,8 +49,9 @@ class CampaignStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class ProspectStatus(str, Enum):
+class ProspectStatus(StrEnum):
     """Prospect status within a campaign."""
+
     PENDING = "pending"
     DRAFT_GENERATED = "draft_generated"
     AWAITING_APPROVAL = "awaiting_approval"
@@ -62,6 +64,7 @@ class ProspectStatus(str, Enum):
 @dataclass
 class CampaignConfig:
     """Configuration for a prospecting campaign."""
+
     name: str
     description: str
     target_status: str = "prospect"  # HubSpot lifecycle stage filter
@@ -69,7 +72,9 @@ class CampaignConfig:
     max_prospects: int = 100
     daily_limit: int = 20
     subject_template: str = "Collaboration opportunity with {brand_name}"
-    personalization_fields: list[str] = field(default_factory=lambda: ["name", "instagram_handle", "follower_count"])
+    personalization_fields: list[str] = field(
+        default_factory=lambda: ["name", "instagram_handle", "follower_count"]
+    )
     auto_approve: bool = False  # Whether to auto-send (requires high confidence)
     confidence_threshold: float = 0.85
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -78,6 +83,7 @@ class CampaignConfig:
 @dataclass
 class ProspectResult:
     """Result of processing a prospect."""
+
     prospect_id: UUID
     hubspot_id: str
     email: str
@@ -92,6 +98,7 @@ class ProspectResult:
 @dataclass
 class CampaignProgress:
     """Progress of a campaign."""
+
     campaign_id: str
     total_prospects: int
     processed: int
@@ -211,14 +218,16 @@ class ProspectingService:
             prospect_key = f"campaign:{campaign_id}:prospect:{contact.hubspot_id}"
             await redis.set(
                 prospect_key,
-                json.dumps({
-                    "hubspot_id": contact.hubspot_id,
-                    "email": contact.email,
-                    "first_name": contact.first_name,
-                    "last_name": contact.last_name,
-                    "company": contact.company,
-                    "status": ProspectStatus.PENDING.value,
-                }),
+                json.dumps(
+                    {
+                        "hubspot_id": contact.hubspot_id,
+                        "email": contact.email,
+                        "first_name": contact.first_name,
+                        "last_name": contact.last_name,
+                        "company": contact.company,
+                        "status": ProspectStatus.PENDING.value,
+                    }
+                ),
                 ex=86400 * 30,
             )
             prospect_ids.append(contact.hubspot_id)
@@ -311,7 +320,7 @@ class ProspectingService:
 
         # Generate subject
         subject = config["subject_template"].format(
-            brand_name=settings.brand_name if hasattr(settings, 'brand_name') else "our brand",
+            brand_name=settings.brand_name if hasattr(settings, "brand_name") else "our brand",
             **personalization,
         )
 
@@ -447,16 +456,18 @@ Write a warm, personalized initial outreach email that:
         prospect_key = f"campaign:{campaign_id}:prospect:{prospect.hubspot_id}"
         await redis.set(
             prospect_key,
-            json.dumps({
-                "hubspot_id": prospect.hubspot_id,
-                "email": prospect.email,
-                "first_name": prospect.first_name,
-                "last_name": prospect.last_name,
-                "company": prospect.company,
-                "status": prospect_status.value,
-                "task_id": str(task_id),
-                "confidence": draft_result.confidence,
-            }),
+            json.dumps(
+                {
+                    "hubspot_id": prospect.hubspot_id,
+                    "email": prospect.email,
+                    "first_name": prospect.first_name,
+                    "last_name": prospect.last_name,
+                    "company": prospect.company,
+                    "status": prospect_status.value,
+                    "task_id": str(task_id),
+                    "confidence": draft_result.confidence,
+                }
+            ),
             ex=86400 * 30,
         )
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import enum
 import uuid
 from datetime import datetime
@@ -15,7 +17,7 @@ if TYPE_CHECKING:
     from src.models.task import Task
 
 
-class Channel(str, enum.Enum):
+class Channel(enum.StrEnum):
     EMAIL = "email"
     INSTAGRAM_DM = "instagram_dm"
     TWITTER_DM = "twitter_dm"
@@ -23,7 +25,7 @@ class Channel(str, enum.Enum):
     SLACK = "slack"
 
 
-class ConversationStatus(str, enum.Enum):
+class ConversationStatus(enum.StrEnum):
     OPEN = "open"
     CLOSED = "closed"
     NEEDS_ACTION = "needs_action"
@@ -69,17 +71,17 @@ class Conversation(Base):
     priority: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Relationships
-    influencer: Mapped["Influencer"] = relationship(
+    influencer: Mapped[Influencer] = relationship(
         "Influencer",
         back_populates="conversations",
     )
-    messages: Mapped[list["Message"]] = relationship(
+    messages: Mapped[list[Message]] = relationship(
         "Message",
         back_populates="conversation",
         lazy="selectin",
         order_by="Message.timestamp",
     )
-    tasks: Mapped[list["Task"]] = relationship(
+    tasks: Mapped[list[Task]] = relationship(
         "Task",
         back_populates="conversation",
         lazy="selectin",

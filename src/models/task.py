@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import enum
 import uuid
 from datetime import datetime
@@ -14,7 +16,7 @@ if TYPE_CHECKING:
     from src.models.conversation import Conversation
 
 
-class TaskType(str, enum.Enum):
+class TaskType(enum.StrEnum):
     DRAFT_REPLY = "draft_reply"
     SCHEDULE_MEETING = "schedule_meeting"
     REMIND_PENDING = "remind_pending"
@@ -24,7 +26,7 @@ class TaskType(str, enum.Enum):
     CUSTOM = "custom"
 
 
-class TaskStatus(str, enum.Enum):
+class TaskStatus(enum.StrEnum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     AWAITING_APPROVAL = "awaiting_approval"
@@ -82,11 +84,11 @@ class Task(Base):
     retry_count: Mapped[int] = mapped_column(default=0, nullable=False)
 
     # Relationships
-    conversation: Mapped["Conversation"] = relationship(
+    conversation: Mapped[Conversation] = relationship(
         "Conversation",
         back_populates="tasks",
     )
-    audit_logs: Mapped[list["AuditLog"]] = relationship(
+    audit_logs: Mapped[list[AuditLog]] = relationship(
         "AuditLog",
         back_populates="task",
         lazy="selectin",

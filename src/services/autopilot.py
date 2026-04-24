@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Autopilot Decision Engine for automated email handling.
 
@@ -10,9 +8,11 @@ This module implements:
 - Audit logging for all autopilot decisions
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
@@ -23,7 +23,7 @@ from src.core.redis import check_kill_switch, get_redis
 from src.services.guardrail import GuardrailResult, GuardrailService
 
 
-class AutopilotDecision(str, Enum):
+class AutopilotDecision(StrEnum):
     """Possible autopilot decisions."""
 
     AUTO_SEND = "auto_send"
@@ -32,7 +32,7 @@ class AutopilotDecision(str, Enum):
     BLOCK = "block"
 
 
-class ConfidenceSignal(str, Enum):
+class ConfidenceSignal(StrEnum):
     """Signals that affect confidence scoring."""
 
     # Positive signals
@@ -400,7 +400,10 @@ class AutopilotEngine:
             can_auto_send = False
         elif intent_allowed and meets_threshold and guardrail_result.passed:
             decision = AutopilotDecision.AUTO_SEND
-            reason = f"Confidence {confidence.overall:.2f} >= threshold {threshold:.2f} for allowed intent"
+            reason = (
+                f"Confidence {confidence.overall:.2f} >= threshold"
+                f" {threshold:.2f} for allowed intent"
+            )
             can_auto_send = True
         else:
             decision = AutopilotDecision.HUMAN_REVIEW

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import enum
 from typing import TYPE_CHECKING
 
@@ -10,14 +12,14 @@ if TYPE_CHECKING:
     from src.models.conversation import Conversation
 
 
-class InfluencerStatus(str, enum.Enum):
+class InfluencerStatus(enum.StrEnum):
     PROSPECT = "prospect"
     ACTIVE = "active"
     INACTIVE = "inactive"
     BLACKLISTED = "blacklisted"
 
 
-class RiskLevel(str, enum.Enum):
+class RiskLevel(enum.StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -61,7 +63,7 @@ class Influencer(Base):
     notes: Mapped[str | None] = mapped_column(nullable=True)
 
     # Relationships
-    conversations: Mapped[list["Conversation"]] = relationship(
+    conversations: Mapped[list[Conversation]] = relationship(
         "Conversation",
         back_populates="influencer",
         lazy="selectin",
