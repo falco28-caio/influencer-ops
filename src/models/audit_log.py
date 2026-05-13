@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Dict
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
@@ -17,7 +19,7 @@ class AuditLog(Base):
 
     __tablename__ = "audit_logs"
 
-    task_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+    task_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("tasks.id", ondelete="SET NULL"),
         nullable=True,
@@ -32,17 +34,17 @@ class AuditLog(Base):
     )
 
     # Details
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    extra_data: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extra_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # LLM tracking (for debugging and improvement)
-    llm_input: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    llm_output: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    llm_model: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    llm_tokens_used: Mapped[Optional[int]] = mapped_column(nullable=True)
+    llm_input: Mapped[str | None] = mapped_column(Text, nullable=True)
+    llm_output: Mapped[str | None] = mapped_column(Text, nullable=True)
+    llm_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    llm_tokens_used: Mapped[int | None] = mapped_column(nullable=True)
 
     # Relationships
-    task: Mapped[Optional["Task"]] = relationship(
+    task: Mapped[Task | None] = relationship(
         "Task",
         back_populates="audit_logs",
     )

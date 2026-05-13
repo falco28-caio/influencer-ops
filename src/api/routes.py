@@ -4,15 +4,19 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.adapters.gmail import GmailAdapter
-from src.adapters.slack import SlackAdapter, ApprovalRequest
+from src.adapters.slack import SlackAdapter
 from src.agents.triage import TriageAgent
 from src.api.schemas import (
-    ConversationCreate,
+    AutopilotStatsResponse,
+    CampaignBatchResponse,
+    CampaignCreateRequest,
+    CampaignProgressResponse,
+    CampaignResponse,
     ConversationResponse,
     DraftRequest,
     DraftResponse,
@@ -24,31 +28,25 @@ from src.api.schemas import (
     InfluencerUpdate,
     KillSwitchRequest,
     KillSwitchResponse,
-    SlackInteractionPayload,
+    ProspectResultResponse,
     SyncRequest,
     SyncResponse,
     TaskApproval,
     TaskResponse,
-    CampaignCreateRequest,
-    CampaignResponse,
-    CampaignProgressResponse,
-    CampaignBatchResponse,
-    ProspectResultResponse,
-    AutopilotStatsResponse,
 )
 from src.core.config import settings
 from src.core.database import get_session
 from src.core.logging import get_logger
-from src.core.redis import check_kill_switch, set_kill_switch, get_redis
+from src.core.redis import check_kill_switch, get_redis, set_kill_switch
 from src.models import (
-    Influencer,
+    AuditLog,
     Conversation,
+    Influencer,
     Message,
     MessageDirection,
     Task,
     TaskStatus,
     TaskType,
-    AuditLog,
 )
 from src.services.drafting import DraftingService
 from src.services.guardrail import GuardrailService
@@ -171,25 +169,25 @@ async def get_influencer(
     session: AsyncSession = Depends(get_session),
 ) -> InfluencerResponse:
     """Get an influencer by ID."""
-    result = await session.execute(
-        select(Influencer).where(Influencer.id == influencer_id)
-    )
+    result = await session.execute(select(Influencer).where(Influencer.id == influencer_id))
     influencer = result.scalar_one_or_none()
     if not influencer:
         raise HTTPException(status_code=404, detail="Influencer not found")
     return InfluencerResponse.model_validate(influencer)
 
 
-@router.patch("/influencers/{influencer_id}", response_model=InfluencerResponse, tags=["Influencers"])
+@router.patch(
+    "/influencers/{influencer_id}",
+    response_model=InfluencerResponse,
+    tags=["Influencers"],
+)
 async def update_influencer(
     influencer_id: UUID,
     data: InfluencerUpdate,
     session: AsyncSession = Depends(get_session),
 ) -> InfluencerResponse:
     """Update an influencer."""
-    result = await session.execute(
-        select(Influencer).where(Influencer.id == influencer_id)
-    )
+    result = await session.execute(select(Influencer).where(Influencer.id == influencer_id))
     influencer = result.scalar_one_or_none()
     if not influencer:
         raise HTTPException(status_code=404, detail="Influencer not found")
@@ -224,15 +222,17 @@ async def list_conversations(
     return [ConversationResponse.model_validate(c) for c in conversations]
 
 
-@router.get("/conversations/{conversation_id}", response_model=ConversationResponse, tags=["Conversations"])
+@router.get(
+    "/conversations/{conversation_id}",
+    response_model=ConversationResponse,
+    tags=["Conversations"],
+)
 async def get_conversation(
     conversation_id: UUID,
     session: AsyncSession = Depends(get_session),
 ) -> ConversationResponse:
     """Get a conversation by ID."""
-    result = await session.execute(
-        select(Conversation).where(Conversation.id == conversation_id)
-    )
+    result = await session.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
@@ -354,9 +354,7 @@ async def triage_email(
     triage_agent = TriageAgent()
 
     # Find or create influencer
-    result = await session.execute(
-        select(Influencer).where(Influencer.email == data.sender)
-    )
+    result = await session.execute(select(Influencer).where(Influencer.email == data.sender))
     influencer = result.scalar_one_or_none()
 
     influencer_context = None
@@ -490,7 +488,11 @@ async def generate_draft(
     drafting_service = DraftingService()
     from src.agents.triage import Intent
 
-    intent = Intent(conversation.primary_intent) if conversation.primary_intent else Intent.GENERAL_QUESTION
+    intent = (
+        Intent(conversation.primary_intent)
+        if conversation.primary_intent
+        else Intent.GENERAL_QUESTION
+    )
 
     draft_result = await drafting_service.generate_draft(
         intent=intent,
@@ -498,10 +500,14 @@ async def generate_draft(
         original_subject=latest_message.subject or conversation.subject or "",
         sender_name=influencer.name if influencer else "Influencer",
         additional_instructions=data.additional_instructions,
-        influencer_context={
-            "name": influencer.name,
-            "status": influencer.status.value,
-        } if influencer else None,
+        influencer_context=(
+            {
+                "name": influencer.name,
+                "status": influencer.status.value,
+            }
+            if influencer
+            else None
+        ),
     )
 
     # Check guardrails
@@ -562,9 +568,10 @@ async def slack_interactions(
     # Parse form data
     form_data = await request.form()
     import json
+
     payload = json.loads(form_data.get("payload", "{}"))
 
-    action_type = payload.get("type")
+    payload.get("type")
     user = payload.get("user", {})
     actions = payload.get("actions", [])
 
@@ -708,7 +715,7 @@ async def get_rag_stats() -> dict[str, Any]:
 @router.get("/dashboard/workflows", tags=["Dashboard"])
 async def get_workflow_stats() -> dict[str, Any]:
     """Get workflow statistics."""
-    from src.services.workflow import get_workflow_engine, WorkflowState
+    from src.services.workflow import WorkflowState, get_workflow_engine
 
     engine = get_workflow_engine()
     redis = await get_redis()
@@ -724,6 +731,7 @@ async def get_workflow_stats() -> dict[str, Any]:
             data = await redis.get(key)
             if data:
                 import json
+
                 state_data = json.loads(data)
                 state = state_data.get("current_state", "unknown")
                 if state in workflows_by_state:
@@ -780,23 +788,21 @@ async def get_recent_activity(
 ) -> list[dict[str, Any]]:
     """Get recent activity (tasks, messages, etc.)."""
     # Get recent tasks
-    result = await session.execute(
-        select(Task)
-        .order_by(Task.created_at.desc())
-        .limit(limit)
-    )
+    result = await session.execute(select(Task).order_by(Task.created_at.desc()).limit(limit))
     tasks = result.scalars().all()
 
     activities = []
     for task in tasks:
-        activities.append({
-            "type": "task",
-            "id": str(task.id),
-            "action": task.type.value,
-            "status": task.status.value,
-            "confidence": task.confidence_score,
-            "timestamp": task.created_at.isoformat(),
-        })
+        activities.append(
+            {
+                "type": "task",
+                "id": str(task.id),
+                "action": task.type.value,
+                "status": task.status.value,
+                "confidence": task.confidence_score,
+                "timestamp": task.created_at.isoformat(),
+            }
+        )
 
     return activities
 
@@ -810,8 +816,7 @@ async def get_conversation_summary(
 
     # Count by status
     result = await session.execute(
-        select(Conversation.status, func.count(Conversation.id))
-        .group_by(Conversation.status)
+        select(Conversation.status, func.count(Conversation.id)).group_by(Conversation.status)
     )
     status_counts = {row[0].value: row[1] for row in result.all()}
 
@@ -825,8 +830,7 @@ async def get_conversation_summary(
 
     # Get conversations needing action
     result = await session.execute(
-        select(func.count(Conversation.id))
-        .where(Conversation.status == "needs_action")
+        select(func.count(Conversation.id)).where(Conversation.status == "needs_action")
     )
     needs_action = result.scalar() or 0
 
@@ -841,12 +845,13 @@ async def get_conversation_summary(
 # Prospecting Endpoints
 # =============================================================================
 
+
 @router.post("/prospecting/campaigns", response_model=CampaignResponse, tags=["Prospecting"])
 async def create_campaign(
     data: CampaignCreateRequest,
 ) -> CampaignResponse:
     """Create a new prospecting campaign."""
-    from src.services.prospecting import get_prospecting_service, CampaignConfig
+    from src.services.prospecting import CampaignConfig, get_prospecting_service
 
     service = await get_prospecting_service()
 
@@ -884,8 +889,9 @@ async def create_campaign(
 @router.get("/prospecting/campaigns", response_model=list[CampaignResponse], tags=["Prospecting"])
 async def list_campaigns() -> list[CampaignResponse]:
     """List all prospecting campaigns."""
-    from src.services.prospecting import get_prospecting_service
     from datetime import datetime
+
+    from src.services.prospecting import get_prospecting_service
 
     service = await get_prospecting_service()
     campaigns = await service.list_campaigns()
@@ -904,13 +910,21 @@ async def list_campaigns() -> list[CampaignResponse]:
             prospects_loaded=c.get("prospects_loaded", 0),
             prospects_processed=c.get("prospects_processed", 0),
             prospects_sent=c.get("prospects_sent", 0),
-            created_at=datetime.fromisoformat(c["created_at"]) if c.get("created_at") else datetime.utcnow(),
+            created_at=(
+                datetime.fromisoformat(c["created_at"])
+                if c.get("created_at")
+                else datetime.utcnow()
+            ),
         )
         for c in campaigns
     ]
 
 
-@router.get("/prospecting/campaigns/{campaign_id}", response_model=CampaignResponse, tags=["Prospecting"])
+@router.get(
+    "/prospecting/campaigns/{campaign_id}",
+    response_model=CampaignResponse,
+    tags=["Prospecting"],
+)
 async def get_campaign(campaign_id: str) -> CampaignResponse:
     """Get a specific campaign."""
     redis = await get_redis()
@@ -936,7 +950,9 @@ async def get_campaign(campaign_id: str) -> CampaignResponse:
         prospects_loaded=c.get("prospects_loaded", 0),
         prospects_processed=c.get("prospects_processed", 0),
         prospects_sent=c.get("prospects_sent", 0),
-        created_at=datetime.fromisoformat(c["created_at"]) if c.get("created_at") else datetime.utcnow(),
+        created_at=(
+            datetime.fromisoformat(c["created_at"]) if c.get("created_at") else datetime.utcnow()
+        ),
     )
 
 
@@ -1066,6 +1082,7 @@ async def process_campaign_batch(
 # Autopilot Endpoints
 # =============================================================================
 
+
 @router.get("/autopilot/stats", response_model=AutopilotStatsResponse, tags=["Autopilot"])
 async def get_autopilot_stats() -> AutopilotStatsResponse:
     """Get autopilot decision statistics."""
@@ -1081,11 +1098,7 @@ async def get_autopilot_stats() -> AutopilotStatsResponse:
     escalated = sum(1 for d in recent if d.get("decision") == "escalate")
     blocked = sum(1 for d in recent if d.get("decision") == "block")
 
-    confidences = [
-        d.get("confidence", {}).get("overall", 0)
-        for d in recent
-        if d.get("confidence")
-    ]
+    confidences = [d.get("confidence", {}).get("overall", 0) for d in recent if d.get("confidence")]
     avg_confidence = sum(confidences) / len(confidences) if confidences else 0
 
     return AutopilotStatsResponse(
@@ -1168,13 +1181,14 @@ async def set_allowed_intents(
 
     return {
         "allowed_intents": intents,
-        "message": f"Allowed intents updated",
+        "message": "Allowed intents updated",
     }
 
 
 # =============================================================================
 # Audit Endpoints
 # =============================================================================
+
 
 @router.get("/audit/events", tags=["Audit"])
 async def get_audit_events(
@@ -1183,7 +1197,7 @@ async def get_audit_events(
     severity: str | None = None,
 ) -> list[dict[str, Any]]:
     """Get recent audit events."""
-    from src.services.audit import get_audit_service, AuditCategory, AuditSeverity
+    from src.services.audit import AuditCategory, AuditSeverity, get_audit_service
 
     service = get_audit_service()
 
@@ -1198,7 +1212,7 @@ async def get_critical_events(
     limit: int = 50,
 ) -> list[dict[str, Any]]:
     """Get critical audit events (errors and critical)."""
-    from src.services.audit import get_audit_service, AuditSeverity
+    from src.services.audit import AuditSeverity, get_audit_service
 
     service = get_audit_service()
     return await service.get_recent_events(limit=limit, severity=AuditSeverity.CRITICAL)
@@ -1221,8 +1235,9 @@ async def get_compliance_report(
     end_date: str,
 ) -> dict[str, Any]:
     """Generate compliance report for date range."""
-    from src.services.audit import get_audit_service
     from datetime import datetime
+
+    from src.services.audit import get_audit_service
 
     service = get_audit_service()
 
@@ -1245,9 +1260,7 @@ async def get_task_audit_trail(
 ) -> list[dict[str, Any]]:
     """Get complete audit trail for a specific task."""
     result = await session.execute(
-        select(AuditLog)
-        .where(AuditLog.task_id == task_id)
-        .order_by(AuditLog.timestamp.asc())
+        select(AuditLog).where(AuditLog.task_id == task_id).order_by(AuditLog.timestamp.asc())
     )
     logs = result.scalars().all()
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from src.core.config import settings
 from src.core.logging import get_logger
 

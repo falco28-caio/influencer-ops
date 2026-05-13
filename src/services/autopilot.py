@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Autopilot Decision Engine for automated email handling.
 
@@ -10,20 +8,22 @@ This module implements:
 - Audit logging for all autopilot decisions
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
 from src.agents.triage import Intent, Priority, Sentiment
 from src.core.config import settings
 from src.core.logging import get_logger
-from src.core.redis import get_redis, check_kill_switch
-from src.services.guardrail import GuardrailService, GuardrailResult
+from src.core.redis import check_kill_switch, get_redis
+from src.services.guardrail import GuardrailResult, GuardrailService
 
 
-class AutopilotDecision(str, Enum):
+class AutopilotDecision(StrEnum):
     """Possible autopilot decisions."""
 
     AUTO_SEND = "auto_send"
@@ -32,7 +32,7 @@ class AutopilotDecision(str, Enum):
     BLOCK = "block"
 
 
-class ConfidenceSignal(str, Enum):
+class ConfidenceSignal(StrEnum):
     """Signals that affect confidence scoring."""
 
     # Positive signals
@@ -400,13 +400,16 @@ class AutopilotEngine:
             can_auto_send = False
         elif intent_allowed and meets_threshold and guardrail_result.passed:
             decision = AutopilotDecision.AUTO_SEND
-            reason = f"Confidence {confidence.overall:.2f} >= threshold {threshold:.2f} for allowed intent"
+            reason = (
+                f"Confidence {confidence.overall:.2f} >= threshold"
+                f" {threshold:.2f} for allowed intent"
+            )
             can_auto_send = True
         else:
             decision = AutopilotDecision.HUMAN_REVIEW
             reasons = []
             if not intent_allowed:
-                reasons.append(f"intent not allowed")
+                reasons.append("intent not allowed")
             if not meets_threshold:
                 reasons.append(f"confidence {confidence.overall:.2f} < {threshold:.2f}")
             if not guardrail_result.passed:

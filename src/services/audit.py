@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Audit Logging Service for comprehensive action tracking.
 
@@ -10,9 +8,11 @@ This module implements:
 - Searchable audit trail
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
@@ -22,8 +22,9 @@ from src.core.redis import get_redis
 from src.models import AuditLog
 
 
-class AuditCategory(str, Enum):
+class AuditCategory(StrEnum):
     """Categories of audit events."""
+
     EMAIL = "email"
     DRAFT = "draft"
     APPROVAL = "approval"
@@ -36,8 +37,9 @@ class AuditCategory(str, Enum):
     INTEGRATION = "integration"
 
 
-class AuditSeverity(str, Enum):
+class AuditSeverity(StrEnum):
     """Severity levels for audit events."""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -47,6 +49,7 @@ class AuditSeverity(str, Enum):
 @dataclass
 class AuditEvent:
     """Structured audit event."""
+
     category: AuditCategory
     action: str
     actor: str
@@ -63,6 +66,7 @@ class AuditEvent:
 @dataclass
 class LLMCallLog:
     """Log of an LLM API call."""
+
     model: str
     prompt_tokens: int
     completion_tokens: int
@@ -254,12 +258,14 @@ class AuditService:
             date = (datetime.utcnow() - timedelta(days=i)).strftime("%Y-%m-%d")
             data = await redis.hgetall(f"audit:tokens:{date}")
             if data:
-                stats["daily_tokens"].append({
-                    "date": date,
-                    "prompt": int(data.get("prompt", 0)),
-                    "completion": int(data.get("completion", 0)),
-                    "total": int(data.get("total", 0)),
-                })
+                stats["daily_tokens"].append(
+                    {
+                        "date": date,
+                        "prompt": int(data.get("prompt", 0)),
+                        "completion": int(data.get("completion", 0)),
+                        "total": int(data.get("total", 0)),
+                    }
+                )
                 stats["total_tokens"] += int(data.get("total", 0))
 
         # Estimate cost (using approximate rates)
@@ -330,17 +336,19 @@ class AuditService:
         subject: str,
     ) -> None:
         """Log email received event."""
-        await self.log_event(AuditEvent(
-            category=AuditCategory.EMAIL,
-            action="email_received",
-            actor="system",
-            actor_type="system",
-            task_id=task_id,
-            conversation_id=conversation_id,
-            influencer_id=influencer_id,
-            description=f"Email received from {sender}",
-            metadata={"sender": sender, "subject": subject},
-        ))
+        await self.log_event(
+            AuditEvent(
+                category=AuditCategory.EMAIL,
+                action="email_received",
+                actor="system",
+                actor_type="system",
+                task_id=task_id,
+                conversation_id=conversation_id,
+                influencer_id=influencer_id,
+                description=f"Email received from {sender}",
+                metadata={"sender": sender, "subject": subject},
+            )
+        )
 
     async def log_email_sent(
         self,
@@ -352,17 +360,19 @@ class AuditService:
         sent_by: str,
     ) -> None:
         """Log email sent event."""
-        await self.log_event(AuditEvent(
-            category=AuditCategory.EMAIL,
-            action="email_sent",
-            actor=sent_by,
-            actor_type="agent" if sent_by in ["autopilot", "system"] else "user",
-            task_id=task_id,
-            conversation_id=conversation_id,
-            influencer_id=influencer_id,
-            description=f"Email sent to {recipient}",
-            metadata={"recipient": recipient, "subject": subject},
-        ))
+        await self.log_event(
+            AuditEvent(
+                category=AuditCategory.EMAIL,
+                action="email_sent",
+                actor=sent_by,
+                actor_type="agent" if sent_by in ["autopilot", "system"] else "user",
+                task_id=task_id,
+                conversation_id=conversation_id,
+                influencer_id=influencer_id,
+                description=f"Email sent to {recipient}",
+                metadata={"recipient": recipient, "subject": subject},
+            )
+        )
 
     async def log_draft_generated(
         self,
@@ -372,16 +382,18 @@ class AuditService:
         confidence: float,
     ) -> None:
         """Log draft generation event."""
-        await self.log_event(AuditEvent(
-            category=AuditCategory.DRAFT,
-            action="draft_generated",
-            actor="drafting_agent",
-            actor_type="agent",
-            task_id=task_id,
-            conversation_id=conversation_id,
-            description=f"Draft generated for intent: {intent}",
-            metadata={"intent": intent, "confidence": confidence},
-        ))
+        await self.log_event(
+            AuditEvent(
+                category=AuditCategory.DRAFT,
+                action="draft_generated",
+                actor="drafting_agent",
+                actor_type="agent",
+                task_id=task_id,
+                conversation_id=conversation_id,
+                description=f"Draft generated for intent: {intent}",
+                metadata={"intent": intent, "confidence": confidence},
+            )
+        )
 
     async def log_approval_decision(
         self,
@@ -392,15 +404,21 @@ class AuditService:
     ) -> None:
         """Log approval decision event."""
         action = "draft_approved" if approved else "draft_rejected"
-        await self.log_event(AuditEvent(
-            category=AuditCategory.APPROVAL,
-            action=action,
-            actor=user_id,
-            actor_type="user",
-            task_id=task_id,
-            description=f"Draft {'approved' + (' with edits' if edited else '') if approved else 'rejected'}",
-            metadata={"approved": approved, "edited": edited},
-        ))
+        await self.log_event(
+            AuditEvent(
+                category=AuditCategory.APPROVAL,
+                action=action,
+                actor=user_id,
+                actor_type="user",
+                task_id=task_id,
+                description=(
+                    "Draft approved" + (" with edits" if edited else "")
+                    if approved
+                    else "Draft rejected"
+                ),
+                metadata={"approved": approved, "edited": edited},
+            )
+        )
 
     async def log_autopilot_decision(
         self,
@@ -411,18 +429,22 @@ class AuditService:
         reason: str,
     ) -> None:
         """Log autopilot decision event."""
-        severity = AuditSeverity.WARNING if decision in ["escalate", "block"] else AuditSeverity.INFO
-        await self.log_event(AuditEvent(
-            category=AuditCategory.AUTOPILOT,
-            action=f"autopilot_{decision}",
-            actor="autopilot",
-            actor_type="autopilot",
-            severity=severity,
-            task_id=task_id,
-            conversation_id=conversation_id,
-            description=f"Autopilot decision: {decision} - {reason}",
-            metadata={"decision": decision, "confidence": confidence, "reason": reason},
-        ))
+        severity = (
+            AuditSeverity.WARNING if decision in ["escalate", "block"] else AuditSeverity.INFO
+        )
+        await self.log_event(
+            AuditEvent(
+                category=AuditCategory.AUTOPILOT,
+                action=f"autopilot_{decision}",
+                actor="autopilot",
+                actor_type="autopilot",
+                severity=severity,
+                task_id=task_id,
+                conversation_id=conversation_id,
+                description=f"Autopilot decision: {decision} - {reason}",
+                metadata={"decision": decision, "confidence": confidence, "reason": reason},
+            )
+        )
 
     async def log_guardrail_violation(
         self,
@@ -432,16 +454,18 @@ class AuditService:
     ) -> None:
         """Log guardrail violation event."""
         severity = AuditSeverity.CRITICAL if risk_score > 0.8 else AuditSeverity.WARNING
-        await self.log_event(AuditEvent(
-            category=AuditCategory.GUARDRAIL,
-            action="guardrail_violation",
-            actor="guardrail_service",
-            actor_type="agent",
-            severity=severity,
-            task_id=task_id,
-            description=f"Guardrail violations detected: {', '.join(violations)}",
-            metadata={"violations": violations, "risk_score": risk_score},
-        ))
+        await self.log_event(
+            AuditEvent(
+                category=AuditCategory.GUARDRAIL,
+                action="guardrail_violation",
+                actor="guardrail_service",
+                actor_type="agent",
+                severity=severity,
+                task_id=task_id,
+                description=f"Guardrail violations detected: {', '.join(violations)}",
+                metadata={"violations": violations, "risk_score": risk_score},
+            )
+        )
 
     async def log_security_event(
         self,
@@ -450,15 +474,17 @@ class AuditService:
         metadata: dict[str, Any] | None = None,
     ) -> None:
         """Log security-related event."""
-        await self.log_event(AuditEvent(
-            category=AuditCategory.SYSTEM,
-            action=action,
-            actor="security_monitor",
-            actor_type="system",
-            severity=AuditSeverity.WARNING,
-            description=description,
-            metadata=metadata or {},
-        ))
+        await self.log_event(
+            AuditEvent(
+                category=AuditCategory.SYSTEM,
+                action=action,
+                actor="security_monitor",
+                actor_type="system",
+                severity=AuditSeverity.WARNING,
+                description=description,
+                metadata=metadata or {},
+            )
+        )
 
 
 # Singleton instance

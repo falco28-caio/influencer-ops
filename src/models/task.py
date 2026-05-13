@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import enum
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, List, Dict
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import JSON, UUID
@@ -14,7 +16,7 @@ if TYPE_CHECKING:
     from src.models.conversation import Conversation
 
 
-class TaskType(str, enum.Enum):
+class TaskType(enum.StrEnum):
     DRAFT_REPLY = "draft_reply"
     SCHEDULE_MEETING = "schedule_meeting"
     REMIND_PENDING = "remind_pending"
@@ -24,7 +26,7 @@ class TaskType(str, enum.Enum):
     CUSTOM = "custom"
 
 
-class TaskStatus(str, enum.Enum):
+class TaskStatus(enum.StrEnum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     AWAITING_APPROVAL = "awaiting_approval"
@@ -57,36 +59,36 @@ class Task(Base):
     )
 
     # Draft content
-    draft_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    draft_subject: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    draft_content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    draft_subject: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     # Approval tracking
-    approval_user_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    approval_timestamp: Mapped[Optional[datetime]] = mapped_column(
+    approval_user_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    approval_timestamp: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
-    rejection_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Slack integration
-    slack_message_ts: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    slack_channel_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    slack_message_ts: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    slack_channel_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Agent metadata
-    confidence_score: Mapped[Optional[float]] = mapped_column(nullable=True)
-    intent_detected: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    context_used: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    confidence_score: Mapped[float | None] = mapped_column(nullable=True)
+    intent_detected: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    context_used: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # Error tracking
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     retry_count: Mapped[int] = mapped_column(default=0, nullable=False)
 
     # Relationships
-    conversation: Mapped["Conversation"] = relationship(
+    conversation: Mapped[Conversation] = relationship(
         "Conversation",
         back_populates="tasks",
     )
-    audit_logs: Mapped[List["AuditLog"]] = relationship(
+    audit_logs: Mapped[list[AuditLog]] = relationship(
         "AuditLog",
         back_populates="task",
         lazy="selectin",

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Enhanced Drafting Service with template support and RAG integration.
 
@@ -10,6 +8,8 @@ Features:
 - Style adaptation based on influencer relationship
 - Quote mode for SOP compliance
 """
+
+from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
@@ -94,7 +94,8 @@ Output a JSON object with:
             subject_template="Re: Partnership Opportunity - {brand_name}",
             body_template="""Hi {influencer_name},
 
-Thank you so much for reaching out about a potential partnership! We're excited about the possibility of working together.
+Thank you so much for reaching out about a potential partnership!\
+ We're excited about the possibility of working together.
 
 {personalized_comment}
 
@@ -222,9 +223,7 @@ Best,
 
     def __init__(self) -> None:
         self.logger = get_logger(self.__class__.__name__)
-        self._client = anthropic.Anthropic(
-            api_key=settings.anthropic_api_key.get_secret_value()
-        )
+        self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key.get_secret_value())
 
     async def generate_draft(
         self,
@@ -240,7 +239,7 @@ Best,
         rag_context: RAGContext | None = None,
     ) -> DraftResult:
         """Generate an email draft response with full context."""
-        start_time = datetime.utcnow()
+        datetime.utcnow()
         context_parts = []
         sources_used = []
 
@@ -273,7 +272,9 @@ Best,
             if rag_context.influencer_context:
                 context_parts.append(f"## Influencer Info\n{rag_context.influencer_context}")
             if rag_context.similar_cases:
-                context_parts.append(f"## Similar Past Cases\n" + "\n---\n".join(rag_context.similar_cases[:2]))
+                context_parts.append(
+                    "## Similar Past Cases\n" + "\n---\n".join(rag_context.similar_cases[:2])
+                )
         elif sop_content:
             context_parts.append(f"## SOP Content (MUST FOLLOW)\n{sop_content}")
             sources_used.append("SOP Documents")
@@ -281,8 +282,7 @@ Best,
         # Add thread history
         if thread_history:
             history_text = "\n---\n".join(
-                f"[{msg['direction'].upper()}]\n{msg['content']}"
-                for msg in thread_history[-5:]
+                f"[{msg['direction'].upper()}]\n{msg['content']}" for msg in thread_history[-5:]
             )
             context_parts.append(f"## Conversation History\n{history_text}")
 
@@ -310,7 +310,8 @@ Email Content:
 Context, SOPs & Guidelines:
 {context}
 
-Generate your response as a JSON object with subject, body, confidence, reasoning, sources_used, and warnings."""
+Generate your response as a JSON object with subject, body, confidence,\
+ reasoning, sources_used, and warnings."""
 
         try:
             response = self._client.messages.create(
@@ -479,7 +480,8 @@ Feedback:
 
 {context_section}
 
-Generate an improved version as a JSON object with subject, body, confidence, reasoning, sources_used, and warnings."""
+Generate an improved version as a JSON object with subject, body, confidence,\
+ reasoning, sources_used, and warnings."""
 
         try:
             response = self._client.messages.create(
@@ -525,7 +527,11 @@ Generate an improved version as a JSON object with subject, body, confidence, re
         if influencer_info.get("content_categories"):
             personalization_hints.append(f"Content focus: {influencer_info['content_categories']}")
 
-        template_section = f"Template to follow:\n{template}" if template else "Create a friendly, personalized outreach."
+        template_section = (
+            f"Template to follow:\n{template}"
+            if template
+            else "Create a friendly, personalized outreach."
+        )
         user_prompt = f"""Generate an initial outreach email for influencer prospecting:
 
 Influencer: {influencer_name}

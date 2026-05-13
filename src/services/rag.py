@@ -8,11 +8,11 @@ from pathlib import Path
 from typing import Any
 
 import chromadb
-from chromadb.config import Settings as ChromaSettings
 import openai
 import tiktoken
+from chromadb.config import Settings as ChromaSettings
 
-from src.adapters.notion import NotionAdapter, NotionPage
+from src.adapters.notion import NotionAdapter
 from src.core.config import settings
 from src.core.logging import get_logger
 
@@ -78,11 +78,13 @@ class ChunkingStrategy:
 
             # If section is small enough, keep as one chunk
             if self.count_tokens(section) <= self.max_tokens:
-                chunks.append({
-                    "content": section,
-                    "section": current_section,
-                    "type": "section",
-                })
+                chunks.append(
+                    {
+                        "content": section,
+                        "section": current_section,
+                        "type": "section",
+                    }
+                )
             else:
                 # Split into paragraphs
                 paragraphs = section.split("\n\n")
@@ -93,11 +95,13 @@ class ChunkingStrategy:
                     para_tokens = self.count_tokens(para)
 
                     if current_tokens + para_tokens > self.max_tokens and current_chunk:
-                        chunks.append({
-                            "content": "\n\n".join(current_chunk),
-                            "section": current_section,
-                            "type": "paragraph_group",
-                        })
+                        chunks.append(
+                            {
+                                "content": "\n\n".join(current_chunk),
+                                "section": current_section,
+                                "type": "paragraph_group",
+                            }
+                        )
                         # Keep overlap
                         overlap_text = current_chunk[-1] if current_chunk else ""
                         current_chunk = [overlap_text] if overlap_text else []
@@ -107,17 +111,17 @@ class ChunkingStrategy:
                     current_tokens += para_tokens
 
                 if current_chunk:
-                    chunks.append({
-                        "content": "\n\n".join(current_chunk),
-                        "section": current_section,
-                        "type": "paragraph_group",
-                    })
+                    chunks.append(
+                        {
+                            "content": "\n\n".join(current_chunk),
+                            "section": current_section,
+                            "type": "paragraph_group",
+                        }
+                    )
 
         return chunks
 
-    def chunk_conversation(
-        self, messages: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+    def chunk_conversation(self, messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Chunk conversation history preserving message boundaries."""
         chunks = []
         current_chunk = []
@@ -130,11 +134,13 @@ class ChunkingStrategy:
             msg_tokens = self.count_tokens(formatted)
 
             if current_tokens + msg_tokens > self.max_tokens and current_chunk:
-                chunks.append({
-                    "content": "\n\n".join(current_chunk),
-                    "type": "conversation",
-                    "message_count": len(current_chunk),
-                })
+                chunks.append(
+                    {
+                        "content": "\n\n".join(current_chunk),
+                        "type": "conversation",
+                        "message_count": len(current_chunk),
+                    }
+                )
                 current_chunk = []
                 current_tokens = 0
 
@@ -142,11 +148,13 @@ class ChunkingStrategy:
             current_tokens += msg_tokens
 
         if current_chunk:
-            chunks.append({
-                "content": "\n\n".join(current_chunk),
-                "type": "conversation",
-                "message_count": len(current_chunk),
-            })
+            chunks.append(
+                {
+                    "content": "\n\n".join(current_chunk),
+                    "type": "conversation",
+                    "message_count": len(current_chunk),
+                }
+            )
 
         return chunks
 
@@ -157,9 +165,7 @@ class HybridSearcher:
     def __init__(self, collection: chromadb.Collection):
         self.collection = collection
 
-    def keyword_search(
-        self, query: str, n_results: int = 10
-    ) -> list[tuple[str, float]]:
+    def keyword_search(self, query: str, n_results: int = 10) -> list[tuple[str, float]]:
         """Simple keyword-based search using document metadata."""
         # Extract keywords from query
         keywords = set(re.findall(r"\b\w{4,}\b", query.lower()))
@@ -214,12 +220,12 @@ class HybridSearcher:
         # Combine scores
         combined = {}
         for i, doc_id in enumerate(semantic_results["ids"][0]):
-            semantic_score = 1 - semantic_results["distances"][0][i]  # Convert distance to similarity
+            # Convert distance to similarity
+            semantic_score = 1 - semantic_results["distances"][0][i]
             keyword_score = keyword_scores.get(doc_id, 0)
 
             combined_score = (
-                semantic_weight * semantic_score
-                + (1 - semantic_weight) * keyword_score
+                semantic_weight * semantic_score + (1 - semantic_weight) * keyword_score
             )
 
             combined[doc_id] = {
@@ -247,9 +253,7 @@ class HybridSearcher:
                     }
 
         # Sort by combined score and return top results
-        sorted_results = sorted(
-            combined.values(), key=lambda x: x["combined_score"], reverse=True
-        )
+        sorted_results = sorted(combined.values(), key=lambda x: x["combined_score"], reverse=True)
         return sorted_results[:n_results]
 
 
@@ -284,9 +288,7 @@ class RAGService:
         )
 
         # Initialize OpenAI for embeddings
-        self._openai_client = openai.OpenAI(
-            api_key=settings.openai_api_key.get_secret_value()
-        )
+        self._openai_client = openai.OpenAI(api_key=settings.openai_api_key.get_secret_value())
 
         # Initialize Notion adapter
         self._notion_adapter = NotionAdapter()

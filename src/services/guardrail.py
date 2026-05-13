@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 import anthropic
@@ -12,7 +12,7 @@ from src.core.config import settings
 from src.core.logging import get_logger
 
 
-class GuardrailViolation(str, Enum):
+class GuardrailViolation(StrEnum):
     """Types of guardrail violations."""
 
     PII_DETECTED = "pii_detected"
@@ -74,7 +74,8 @@ class GuardrailService:
         r"(?i)roleplay\s+as\s+(?:a|an)?",
         r"(?i)imagine\s+you(?:'re| are)\s+(?:a|an)?",
         # System prompt extraction
-        r"(?i)(?:show|reveal|display|print|output|tell me)\s+(?:your|the)\s+(?:system\s+)?(?:prompt|instructions?)",
+        r"(?i)(?:show|reveal|display|print|output|tell me)\s+(?:your|the)\s+(?:system\s+)?"
+        r"(?:prompt|instructions?)",
         r"(?i)what\s+(?:is|are)\s+your\s+(?:system\s+)?(?:prompt|instructions?|rules?)",
         r"(?i)repeat\s+(?:your|the)\s+(?:system\s+)?(?:prompt|instructions?)",
         # Delimiter injection
@@ -133,9 +134,7 @@ Output a JSON object:
 
     def __init__(self) -> None:
         self.logger = get_logger(self.__class__.__name__)
-        self._client = anthropic.Anthropic(
-            api_key=settings.anthropic_api_key.get_secret_value()
-        )
+        self._client = anthropic.Anthropic(api_key=settings.anthropic_api_key.get_secret_value())
 
     async def check_content(
         self,
@@ -159,7 +158,9 @@ Output a JSON object:
             if injection_result["injection_detected"]:
                 violations.append(GuardrailViolation.PROMPT_INJECTION)
                 details["prompt_injection"] = injection_result
-                suggestions.append("Content contains potential prompt injection - requires human review")
+                suggestions.append(
+                    "Content contains potential prompt injection - requires human review"
+                )
                 risk_score += 0.8
                 self.logger.warning(
                     "Prompt injection detected",
@@ -185,7 +186,9 @@ Output a JSON object:
                 "current": len(content),
                 "max": settings.max_draft_length,
             }
-            suggestions.append(f"Reduce content length to under {settings.max_draft_length} characters")
+            suggestions.append(
+                f"Reduce content length to under {settings.max_draft_length} characters"
+            )
             risk_score += 0.2
 
         # Check for forbidden terms
@@ -350,7 +353,9 @@ Output a JSON object:
         # Escape any delimiter-like patterns
         content = re.sub(r"(#+\s*(?:SYSTEM|USER|ASSISTANT))", r"\\\1", content)
         content = re.sub(r"(\[\s*(?:SYSTEM|USER|ASSISTANT)\s*\])", r"\\\1", content)
-        content = re.sub(r"(<\s*(?:system|user|assistant)\s*>)", r"\\\1", content, flags=re.IGNORECASE)
+        content = re.sub(
+            r"(<\s*(?:system|user|assistant)\s*>)", r"\\\1", content, flags=re.IGNORECASE
+        )
 
         return content
 
@@ -385,9 +390,7 @@ Output a JSON object:
 
         return {"found": bool(found), "matches": found}
 
-    async def _check_policy_llm(
-        self, content: str, context: str | None
-    ) -> dict[str, Any]:
+    async def _check_policy_llm(self, content: str, context: str | None) -> dict[str, Any]:
         """Use LLM to check for policy violations."""
         try:
             user_prompt = f"""Review this email draft:

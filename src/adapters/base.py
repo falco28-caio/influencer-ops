@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -30,7 +32,7 @@ class BaseAdapter(ABC):
     def is_initialized(self) -> bool:
         return self._initialized
 
-    async def __aenter__(self) -> "BaseAdapter":
+    async def __aenter__(self) -> BaseAdapter:
         await self.initialize()
         return self
 

@@ -1,14 +1,16 @@
-from contextlib import asynccontextmanager
+from __future__ import annotations
+
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routes import router
 from src.core.config import settings
-from src.core.database import init_db, close_db
-from src.core.logging import setup_logging, get_logger
-from src.core.redis import get_redis, close_redis
+from src.core.database import close_db, init_db
+from src.core.logging import get_logger, setup_logging
+from src.core.redis import close_redis, get_redis
 
 
 @asynccontextmanager

@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import enum
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, List
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -15,7 +17,7 @@ if TYPE_CHECKING:
     from src.models.task import Task
 
 
-class Channel(str, enum.Enum):
+class Channel(enum.StrEnum):
     EMAIL = "email"
     INSTAGRAM_DM = "instagram_dm"
     TWITTER_DM = "twitter_dm"
@@ -23,7 +25,7 @@ class Channel(str, enum.Enum):
     SLACK = "slack"
 
 
-class ConversationStatus(str, enum.Enum):
+class ConversationStatus(enum.StrEnum):
     OPEN = "open"
     CLOSED = "closed"
     NEEDS_ACTION = "needs_action"
@@ -47,39 +49,39 @@ class Conversation(Base):
         default=Channel.EMAIL,
         nullable=False,
     )
-    thread_id: Mapped[Optional[str]] = mapped_column(
+    thread_id: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
         index=True,
     )
-    subject: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    subject: Mapped[str | None] = mapped_column(String(500), nullable=True)
     status: Mapped[ConversationStatus] = mapped_column(
         Enum(ConversationStatus),
         default=ConversationStatus.OPEN,
         nullable=False,
     )
-    last_message_at: Mapped[Optional[datetime]] = mapped_column(
+    last_message_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
 
     # Intent classification
-    primary_intent: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    sentiment: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    priority: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    primary_intent: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    sentiment: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    priority: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Relationships
-    influencer: Mapped["Influencer"] = relationship(
+    influencer: Mapped[Influencer] = relationship(
         "Influencer",
         back_populates="conversations",
     )
-    messages: Mapped[List["Message"]] = relationship(
+    messages: Mapped[list[Message]] = relationship(
         "Message",
         back_populates="conversation",
         lazy="selectin",
         order_by="Message.timestamp",
     )
-    tasks: Mapped[List["Task"]] = relationship(
+    tasks: Mapped[list[Task]] = relationship(
         "Task",
         back_populates="conversation",
         lazy="selectin",

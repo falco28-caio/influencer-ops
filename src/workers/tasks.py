@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 from datetime import datetime
 from uuid import UUID
@@ -5,31 +7,31 @@ from uuid import UUID
 from celery import shared_task
 
 from src.adapters.gmail import GmailAdapter
-from src.adapters.slack import SlackAdapter, ApprovalRequest
 from src.adapters.hubspot import HubSpotAdapter
-from src.agents.triage import TriageAgent, Intent, Priority, Sentiment
+from src.adapters.slack import ApprovalRequest, SlackAdapter
+from src.agents.triage import Intent, Priority, Sentiment, TriageAgent
 from src.core.database import get_session_context
 from src.core.logging import get_logger
-from src.core.redis import check_kill_switch
+from src.core.redis import check_kill_switch, get_redis
 from src.models import (
+    AuditLog,
+    Conversation,
+    ConversationStatus,
     Influencer,
     InfluencerStatus,
-    Conversation,
     Message,
     MessageDirection,
     Task,
     TaskStatus,
     TaskType,
-    AuditLog,
-    ConversationStatus,
+)
+from src.services.autopilot import (
+    AutopilotDecision,
+    get_autopilot_engine,
 )
 from src.services.drafting import DraftingService
 from src.services.guardrail import GuardrailService
 from src.services.rag import RAGService
-from src.services.autopilot import (
-    get_autopilot_engine,
-    AutopilotDecision,
-)
 
 logger = get_logger(__name__)
 
@@ -92,9 +94,7 @@ def process_incoming_email(
 ):
     """Process an incoming email."""
     return run_async(
-        _process_incoming_email_async(
-            message_id, thread_id, subject, sender, body, timestamp
-        )
+        _process_incoming_email_async(message_id, thread_id, subject, sender, body, timestamp)
     )
 
 
@@ -125,9 +125,7 @@ async def _process_incoming_email_async(
         # Find or create influencer
         from sqlalchemy import select
 
-        result = await session.execute(
-            select(Influencer).where(Influencer.email == sender)
-        )
+        result = await session.execute(select(Influencer).where(Influencer.email == sender))
         influencer = result.scalar_one_or_none()
 
         if not influencer:
@@ -229,12 +227,10 @@ async def _generate_draft_async(task_id: str):
     logger.info("Generating draft", task_id=task_id)
 
     async with get_session_context() as session:
-        from sqlalchemy import select, func
+        from sqlalchemy import func, select
 
         # Get task with conversation and messages
-        result = await session.execute(
-            select(Task).where(Task.id == UUID(task_id))
-        )
+        result = await session.execute(select(Task).where(Task.id == UUID(task_id)))
         task = result.scalar_one_or_none()
 
         if not task:
@@ -266,8 +262,7 @@ async def _generate_draft_async(task_id: str):
 
         # Get thread length
         result = await session.execute(
-            select(func.count(Message.id))
-            .where(Message.conversation_id == conversation.id)
+            select(func.count(Message.id)).where(Message.conversation_id == conversation.id)
         )
         thread_length = result.scalar() or 0
 
@@ -287,7 +282,9 @@ async def _generate_draft_async(task_id: str):
         # Generate draft
         drafting_service = DraftingService()
         intent = Intent(task.intent_detected) if task.intent_detected else Intent.GENERAL_QUESTION
-        sentiment = Sentiment(conversation.sentiment) if conversation.sentiment else Sentiment.NEUTRAL
+        sentiment = (
+            Sentiment(conversation.sentiment) if conversation.sentiment else Sentiment.NEUTRAL
+        )
         priority = Priority(conversation.priority) if conversation.priority else Priority.MEDIUM
 
         draft_result = await drafting_service.generate_draft(
@@ -296,11 +293,15 @@ async def _generate_draft_async(task_id: str):
             original_subject=latest_message.subject or conversation.subject or "",
             sender_name=influencer.name if influencer else "Influencer",
             sop_content=sop_content,
-            influencer_context={
-                "name": influencer.name,
-                "status": influencer.status.value,
-                "risk_level": influencer.risk_level.value if influencer.risk_level else "low",
-            } if influencer else None,
+            influencer_context=(
+                {
+                    "name": influencer.name,
+                    "status": influencer.status.value,
+                    "risk_level": influencer.risk_level.value if influencer.risk_level else "low",
+                }
+                if influencer
+                else None
+            ),
         )
 
         # Check guardrails
@@ -320,11 +321,15 @@ async def _generate_draft_async(task_id: str):
             sentiment=sentiment,
             priority=priority,
             influencer_status=influencer.status.value if influencer else None,
-            influencer_risk=influencer.risk_level.value if influencer and influencer.risk_level else None,
+            influencer_risk=(
+                influencer.risk_level.value if influencer and influencer.risk_level else None
+            ),
             draft_content=draft_result.body,
             draft_confidence=draft_result.confidence,
             sop_sources=sop_sources,
-            template_used=draft_result.template_used if hasattr(draft_result, 'template_used') else False,
+            template_used=(
+                draft_result.template_used if hasattr(draft_result, "template_used") else False
+            ),
             thread_length=thread_length,
         )
 
@@ -461,9 +466,7 @@ async def _generate_draft_async(task_id: str):
 
         # Update task with Slack message info
         async with get_session_context() as session:
-            result = await session.execute(
-                select(Task).where(Task.id == UUID(task_id))
-            )
+            result = await session.execute(select(Task).where(Task.id == UUID(task_id)))
             task = result.scalar_one_or_none()
             if task:
                 task.slack_message_ts = slack_msg.ts
@@ -496,9 +499,7 @@ async def _send_email_async(task_id: str):
     async with get_session_context() as session:
         from sqlalchemy import select
 
-        result = await session.execute(
-            select(Task).where(Task.id == UUID(task_id))
-        )
+        result = await session.execute(select(Task).where(Task.id == UUID(task_id)))
         task = result.scalar_one_or_none()
 
         if not task or task.status != TaskStatus.APPROVED:
@@ -591,20 +592,22 @@ async def _sync_hubspot_async():
 
                 for contact in contacts:
                     result = await session.execute(
-                        select(Influencer).where(
-                            Influencer.hubspot_id == contact.hubspot_id
-                        )
+                        select(Influencer).where(Influencer.hubspot_id == contact.hubspot_id)
                     )
                     influencer = result.scalar_one_or_none()
 
                     if influencer:
                         # Update existing
-                        influencer.name = f"{contact.first_name or ''} {contact.last_name or ''}".strip() or influencer.name
+                        influencer.name = (
+                            f"{contact.first_name or ''} {contact.last_name or ''}".strip()
+                            or influencer.name
+                        )
                     else:
                         # Create new
                         influencer = Influencer(
                             hubspot_id=contact.hubspot_id,
-                            name=f"{contact.first_name or ''} {contact.last_name or ''}".strip() or contact.email.split("@")[0],
+                            name=f"{contact.first_name or ''} {contact.last_name or ''}".strip()
+                            or contact.email.split("@")[0],
                             email=contact.email,
                         )
                         session.add(influencer)
@@ -664,6 +667,7 @@ async def _check_pending_reminders_async():
 # Prospecting Tasks
 # =============================================================================
 
+
 @shared_task(bind=True, max_retries=3)
 def process_prospecting_campaign(self, campaign_id: str, batch_size: int = 10):
     """Process a batch of prospects for a campaign."""
@@ -708,7 +712,7 @@ def run_active_campaigns():
 
 async def _run_active_campaigns_async():
     """Async implementation of running active campaigns."""
-    from src.services.prospecting import get_prospecting_service, CampaignStatus
+    from src.services.prospecting import CampaignStatus, get_prospecting_service
 
     if await check_kill_switch():
         return {"status": "skipped", "reason": "kill_switch"}
@@ -759,9 +763,7 @@ async def _send_approved_outreach_async(task_id: str):
     async with get_session_context() as session:
         from sqlalchemy import select
 
-        result = await session.execute(
-            select(Task).where(Task.id == UUID(task_id))
-        )
+        result = await session.execute(select(Task).where(Task.id == UUID(task_id)))
         task = result.scalar_one_or_none()
 
         if not task or task.status != TaskStatus.APPROVED:
@@ -823,7 +825,9 @@ async def _send_approved_outreach_async(task_id: str):
                 timestamp=datetime.utcnow(),
                 extra_data={
                     "gmail_message_id": message_id,
-                    "campaign_id": task.context_used.get("campaign_id") if task.context_used else None,
+                    "campaign_id": (
+                        task.context_used.get("campaign_id") if task.context_used else None
+                    ),
                 },
             )
             session.add(audit_log)
@@ -832,6 +836,7 @@ async def _send_approved_outreach_async(task_id: str):
             if task.context_used and "campaign_id" in task.context_used:
                 redis = await get_redis()
                 import json
+
                 from src.services.prospecting import ProspectStatus
 
                 campaign_id = task.context_used["campaign_id"]

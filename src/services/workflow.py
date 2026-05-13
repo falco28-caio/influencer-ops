@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """
 Workflow Engine for managing conversation state machines.
 
@@ -18,17 +16,20 @@ This implements a state machine for email conversations with the following state
 Transitions are triggered by events and can have guards (conditions).
 """
 
+from __future__ import annotations
+
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from enum import Enum
-from typing import Any, Callable, Awaitable
+from enum import StrEnum
+from typing import Any
 from uuid import UUID
 
 from src.core.logging import get_logger
 from src.core.redis import get_redis
 
 
-class WorkflowState(str, Enum):
+class WorkflowState(StrEnum):
     """Conversation workflow states."""
 
     NEW = "new"
@@ -46,7 +47,7 @@ class WorkflowState(str, Enum):
     ESCALATED = "escalated"
 
 
-class WorkflowEvent(str, Enum):
+class WorkflowEvent(StrEnum):
     """Events that trigger state transitions."""
 
     EMAIL_RECEIVED = "email_received"
@@ -250,15 +251,9 @@ class WorkflowEngine:
 
         self._transitions = transitions
 
-    def get_valid_transitions(
-        self, current_state: WorkflowState
-    ) -> list[WorkflowEvent]:
+    def get_valid_transitions(self, current_state: WorkflowState) -> list[WorkflowEvent]:
         """Get list of valid events from current state."""
-        return [
-            t.event
-            for t in self._transitions
-            if t.from_state == current_state
-        ]
+        return [t.event for t in self._transitions if t.from_state == current_state]
 
     def can_transition(
         self,
@@ -269,10 +264,7 @@ class WorkflowEngine:
         """Check if a transition is valid."""
         context = context or {}
         for transition in self._transitions:
-            if (
-                transition.from_state == current_state
-                and transition.event == event
-            ):
+            if transition.from_state == current_state and transition.event == event:
                 if transition.guard is None:
                     return True
                 return transition.guard(context)
@@ -287,10 +279,7 @@ class WorkflowEngine:
         """Get the next state for a given event."""
         context = context or {}
         for transition in self._transitions:
-            if (
-                transition.from_state == current_state
-                and transition.event == event
-            ):
+            if transition.from_state == current_state and transition.event == event:
                 if transition.guard is None or transition.guard(context):
                     return transition.to_state
         return None
@@ -338,13 +327,15 @@ class WorkflowEngine:
         # Update context
         workflow_context.current_state = next_state
         workflow_context.last_transition = datetime.utcnow()
-        workflow_context.history.append({
-            "from_state": current_state.value,
-            "to_state": next_state.value,
-            "event": event.value,
-            "timestamp": datetime.utcnow().isoformat(),
-            "data": event_data,
-        })
+        workflow_context.history.append(
+            {
+                "from_state": current_state.value,
+                "to_state": next_state.value,
+                "event": event.value,
+                "timestamp": datetime.utcnow().isoformat(),
+                "data": event_data,
+            }
+        )
 
         # Update retry count on retry event
         if event == WorkflowEvent.RETRY:
@@ -368,9 +359,7 @@ class WorkflowEngine:
 
         return workflow_context
 
-    def on_state_enter(
-        self, state: WorkflowState
-    ) -> Callable[[Callable], Callable]:
+    def on_state_enter(self, state: WorkflowState) -> Callable[[Callable], Callable]:
         """Decorator to register a state enter hook."""
 
         def decorator(func: Callable) -> Callable:
@@ -381,9 +370,7 @@ class WorkflowEngine:
 
         return decorator
 
-    def on_state_exit(
-        self, state: WorkflowState
-    ) -> Callable[[Callable], Callable]:
+    def on_state_exit(self, state: WorkflowState) -> Callable[[Callable], Callable]:
         """Decorator to register a state exit hook."""
 
         def decorator(func: Callable) -> Callable:
@@ -406,11 +393,14 @@ class WorkflowEngine:
             "intent": context.intent,
             "confidence": context.confidence,
             "retry_count": context.retry_count,
-            "last_transition": context.last_transition.isoformat() if context.last_transition else None,
+            "last_transition": (
+                context.last_transition.isoformat() if context.last_transition else None
+            ),
             "metadata": context.metadata,
         }
 
         import json
+
         await redis.set(key, json.dumps(state_data), ex=86400 * 30)  # 30 days TTL
 
     async def load_state(self, conversation_id: UUID) -> WorkflowContext | None:
@@ -423,17 +413,24 @@ class WorkflowEngine:
             return None
 
         import json
+
         state_data = json.loads(data)
 
         return WorkflowContext(
             conversation_id=conversation_id,
             current_state=WorkflowState(state_data["current_state"]),
             task_id=UUID(state_data["task_id"]) if state_data.get("task_id") else None,
-            influencer_id=UUID(state_data["influencer_id"]) if state_data.get("influencer_id") else None,
+            influencer_id=(
+                UUID(state_data["influencer_id"]) if state_data.get("influencer_id") else None
+            ),
             intent=state_data.get("intent"),
             confidence=state_data.get("confidence", 0.0),
             retry_count=state_data.get("retry_count", 0),
-            last_transition=datetime.fromisoformat(state_data["last_transition"]) if state_data.get("last_transition") else None,
+            last_transition=(
+                datetime.fromisoformat(state_data["last_transition"])
+                if state_data.get("last_transition")
+                else None
+            ),
             metadata=state_data.get("metadata", {}),
         )
 

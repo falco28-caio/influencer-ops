@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
-from src.agents.triage import TriageAgent, Intent, Priority, Sentiment
+import pytest
+
+from src.agents.triage import Intent, TriageAgent
 
 
 class TestTriageAgent:
@@ -76,9 +77,20 @@ class TestGuardrailService:
     @pytest.fixture
     def guardrail_service(self):
         """Create a GuardrailService instance."""
-        with patch("src.services.guardrail.anthropic.Anthropic"):
-            from src.services.guardrail import GuardrailService
-            return GuardrailService()
+        import importlib
+        import sys
+        import types
+        from unittest.mock import MagicMock
+
+        if "src.services" not in sys.modules:
+            pkg = types.ModuleType("src.services")
+            pkg.__path__ = ["src/services"]
+            pkg.__package__ = "src.services"
+            sys.modules["src.services"] = pkg
+
+        guardrail_mod = importlib.import_module("src.services.guardrail")
+        with patch.object(guardrail_mod.anthropic, "Anthropic", MagicMock()):
+            return guardrail_mod.GuardrailService()
 
     def test_pii_detection_credit_card(self, guardrail_service):
         """Test detection of credit card numbers."""

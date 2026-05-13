@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Awaitable
+from typing import Any
 
-from slack_sdk.web.async_client import AsyncWebClient
 from slack_sdk.errors import SlackApiError
+from slack_sdk.web.async_client import AsyncWebClient
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.adapters.base import BaseAdapter
@@ -171,7 +172,12 @@ class SlackAdapter(BaseAdapter):
 
     def _build_approval_blocks(self, request: ApprovalRequest) -> list[dict[str, Any]]:
         """Build Block Kit blocks for approval request."""
-        confidence_emoji = "🟢" if request.confidence_score >= 0.8 else "🟡" if request.confidence_score >= 0.5 else "🔴"
+        if request.confidence_score >= 0.8:
+            confidence_emoji = "🟢"
+        elif request.confidence_score >= 0.5:
+            confidence_emoji = "🟡"
+        else:
+            confidence_emoji = "🔴"
 
         blocks: list[dict[str, Any]] = [
             {
@@ -215,63 +221,70 @@ class SlackAdapter(BaseAdapter):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*Draft:*\n```{request.draft_content[:2000]}{'...' if len(request.draft_content) > 2000 else ''}```",
+                    "text": (
+                        f"*Draft:*\n```{request.draft_content[:2000]}"
+                        f"{'...' if len(request.draft_content) > 2000 else ''}```"
+                    ),
                 },
             },
         ]
 
         if request.context_summary:
-            blocks.append({
-                "type": "context",
-                "elements": [
-                    {
-                        "type": "mrkdwn",
-                        "text": f"📋 *Context:* {request.context_summary}",
-                    }
-                ],
-            })
+            blocks.append(
+                {
+                    "type": "context",
+                    "elements": [
+                        {
+                            "type": "mrkdwn",
+                            "text": f"📋 *Context:* {request.context_summary}",
+                        }
+                    ],
+                }
+            )
 
-        blocks.extend([
-            {"type": "divider"},
-            {
-                "type": "actions",
-                "block_id": f"approval_actions_{request.task_id}",
-                "elements": [
-                    {
-                        "type": "button",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "✅ Approve & Send",
-                            "emoji": True,
+        blocks.extend(
+            [
+                {"type": "divider"},
+                {
+                    "type": "actions",
+                    "block_id": f"approval_actions_{request.task_id}",
+                    "elements": [
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "✅ Approve & Send",
+                                "emoji": True,
+                            },
+                            "style": "primary",
+                            "action_id": "approve_draft",
+                            "value": request.task_id,
                         },
-                        "style": "primary",
-                        "action_id": "approve_draft",
-                        "value": request.task_id,
-                    },
-                    {
-                        "type": "button",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "✏️ Edit Draft",
-                            "emoji": True,
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "✏️ Edit Draft",
+                                "emoji": True,
+                            },
+                            "action_id": "edit_draft",
+                            "value": request.task_id,
                         },
-                        "action_id": "edit_draft",
-                        "value": request.task_id,
-                    },
-                    {
-                        "type": "button",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "❌ Reject",
-                            "emoji": True,
+                        {
+                            "type": "button",
+                            "text": {
+                                "type": "plain_text",
+                                "text": "❌ Reject",
+                                "emoji": True,
+                            },
+                            "style": "danger",
+                            "action_id": "reject_draft",
+                            "value": request.task_id,
                         },
-                        "style": "danger",
-                        "action_id": "reject_draft",
-                        "value": request.task_id,
-                    },
-                ],
-            },
-        ])
+                    ],
+                },
+            ]
+        )
 
         return blocks
 
@@ -354,7 +367,10 @@ class SlackAdapter(BaseAdapter):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*Subject:* {subject}\n\n>{preview[:500]}{'...' if len(preview) > 500 else ''}",
+                    "text": (
+                        f"*Subject:* {subject}\n\n>"
+                        f"{preview[:500]}{'...' if len(preview) > 500 else ''}"
+                    ),
                 },
             },
         ]
@@ -384,7 +400,10 @@ class SlackAdapter(BaseAdapter):
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"All automated operations have been stopped by <@{activated_by}>.\n\nTo resume operations, use `/ops-resume`.",
+                    "text": (
+                        f"All automated operations have been stopped by <@{activated_by}>."
+                        "\n\nTo resume operations, use `/ops-resume`."
+                    ),
                 },
             },
         ]
